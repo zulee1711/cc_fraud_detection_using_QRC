@@ -1,0 +1,1 @@
+Fernandes Pereira dos Santos, A. (2026). QRC-Lab: An Educational Toolbox for Quantum Reservoir Computing [Computer software]. Zenodo. https://doi.org/10.5281/zenodo.18469026
