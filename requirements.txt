@@ -2,3 +2,4 @@ spin-pulse
 optuna
 qiskit
 jupyterlab
+pandas
