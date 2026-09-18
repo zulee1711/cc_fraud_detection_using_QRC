@@ -1,12 +1,14 @@
 ## Clone repository
 ```bash
-git clone https://github.com/zulee1711/cc_fraud_detection_using_QRC.git
+git clone --recurse-submodules https://github.com/zulee1711/cc_fraud_detection_using_QRC.git
 ```
-**Note:** To change the name of the cloned folder, use the following command:
+
+**Note:** `thelab/` is a git submodule (a reference QRC implementation the company coaches suggested us).
+`--recurse-submodules` populates it on clone. If you have already cloned without it, or
+if `thelab/` looks empty, run:
 ```bash
-git clone https://github.com/zulee1711/cc_fraud_detection_using_QRC.git <new_folder_name>
+git submodule update --init
 ```
-with `<new_folder_name>` being the desired name for the cloned folder.
 
 ## Download datasets
 Datasets are available at:
@@ -35,6 +37,37 @@ source .venv/bin/activate
 ### Install dependencies:
 ```bash
 pip install -r requirements.txt
+```
+
+## Project structure
+
+```
+cc_fraud_detection_using_QRC/
+├── qrc/                  # QRC library — the import root for project code
+│   ├── encodings.py      # input encodings (AngleEncoding, ...)
+│   ├── hamiltonians.py   # reservoir Hamiltonians
+│   ├── trotter.py        # Trotterised time evolution
+│   ├── reservoirs.py     # reservoir definitions
+│   ├── readout.py        # measurement / readout layer
+│   ├── protocol.py       # end-to-end QRC protocol
+│   └── backends/         # execution backends
+│       ├── base.py
+│       ├── sampled.py
+│       ├── spinpulse.py
+│       └── statevector.py
+├── examples/             # spin-pulse usage examples
+├── notebook/             # scratch notebooks
+├── thelab/               # reference implementation (git submodule)
+└── raw_data/             # datasets you download (git-ignored)
+```
+
+### Importing project code
+
+Run Python from the repository root and import through the `qrc` package:
+
+```python
+from qrc.encodings import AngleEncoding
+from qrc.hamiltonians import build_disordered_tfim
 ```
 
 ## Run examples:
