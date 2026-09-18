@@ -1,0 +1,4 @@
+[submodule "thelab"]
+	path = thelab
+	url = https://github.com/qrclab-ui/thelab.git
+	ignore = untracked
