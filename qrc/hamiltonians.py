@@ -1,30 +1,61 @@
-from qiskit.quantum_info import SparsePauliOp
-import numpy as np
+"""Reservoir Hamiltonians.
+
+Every builder is meant to return a :class:`Hamiltonian`: an operator whose *form*
+is fixed when the experiment is designed and whose *couplings* are drawn once,
+from a seeded generator, when the reservoir is constructed.
+
+The models follow the 'Design choices' page from the Notion.
+"""
+
 
 class Hamiltonian:
-    def __init__(self, num_qubits: int, ops: SparsePauliOp, seed: int):
-        np.random.default_rng(seed)
+    """A fixed reservoir Hamiltonian on a linear chain of nearest neighbours.
+
+    Attributes:
+        name (str): short identifier, used when logging experiments.
+        num_qubits (int): chain length (n_in + n_mem).
+        ops (SparsePauliOp): the operator itself.
+        params (dict): the coupling values that were drawn, so a reservoir can be
+            reported and reproduced without re-deriving them from the seed.
+    """
+
+    def __init__(self, name, num_qubits, ops, params=None):
+        self.name = name
         self.num_qubits = num_qubits
         self.ops = ops
-        self.seed = seed
+        self.params = params or {}
 
-def build_disordered_tfim(n, J, h ,W) -> Hamiltonian:
-    """Builds a disordered transverse-field Ising Hamiltonian, of the form
-                  Σ J_ij Z_i Z_j  +   Σ h_i Z_i +   Σ g X_i
-     with J_ij ~ U[J/2, J], h_i ~ U[h-W, h+W] and g ~ J
-     """
-    ops_list = []
-    J_couplings = np.random.uniform(J / 2, J, n - 1)
-    h_disorders = np.random.uniform(h-W, h+W, n)
-    g = J
-    for i in range(n - 1):
-        ops_list.append(("ZZ", [i, i + 1], J_couplings[i]))
-    for i in range(n):
-        ops_list.append(("Z", [i], h_disorders[i]))
-    for i in range(n):
-        ops_list.append(("X", [i], g))
+    def __repr__(self):
+        return f"Hamiltonian({self.name!r}, num_qubits={self.num_qubits}, terms={len(self.ops)})"
 
-    ops = SparsePauliOp.from_sparse_list(ops_list, num_qubits=n)
-    return Hamiltonian(n, ops, 42)
 
-# H = build_disordered_tfim(5, 0, 0, 0)
+def tfim(num_qubits):
+    """`1.` Textbook transverse-field Ising model.
+
+        H = Σ J_i,i+1 X_i X_i+1  +  ν Σ Z_i
+    """
+    raise NotImplementedError
+
+
+def tfim_longitudinal(num_qubits):
+    """`2.` Ising model with an added longitudinal field, which breaks
+    integrability and makes the dynamics genuinely chaotic.
+
+        H = Σ J_i,i+1 X_i X_i+1  +  ν Σ Z_i  +  Σ g_i X_i
+    """
+    raise NotImplementedError
+
+
+def tfim_native(num_qubits):
+    """`3.` Model `2.` conjugated by Hadamards (X <-> Z), so the coupling term
+    lands on SpinPulse's native RZZ. Same spectrum, cheaper circuit.
+
+        H = Σ J_i,i+1 Z_i Z_i+1  +  ν Σ X_i  +  Σ g_i Z_i
+    """
+    raise NotImplementedError
+
+
+def native_exchange(num_qubits):
+    """`4.` ...
+    """
+    raise NotImplementedError
