@@ -3,3 +3,8 @@ optuna
 qiskit
 jupyterlab
 pandas
+matplotlib
+plotly
+seaborn
+scipy
+scikit-learn

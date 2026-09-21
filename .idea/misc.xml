@@ -3,5 +3,5 @@
   <component name="Black">
     <option name="sdkName" value="Python 3.12 (quobly)" />
   </component>
-  <component name="ProjectRootManager" version="2" project-jdk-name="WSL (Ubuntu): (/home/zulee/.virtualenvs/quobly/bin/python)" project-jdk-type="Python SDK" />
+  <component name="ProjectRootManager" version="2" project-jdk-name="WSL (Ubuntu): (/home/zulee/.virtualenvs/eda/bin/python)" project-jdk-type="Python SDK" />
 </project>

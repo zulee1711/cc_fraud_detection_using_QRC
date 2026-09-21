@@ -124,8 +124,7 @@ def generate_transactions_table(customer_profile, start_date="2018-04-01", nb_da
                                                       terminal_id, amount])
 
     customer_transactions = pd.DataFrame(customer_transactions,
-                                         columns=['TX_TIME_SECONDS', 'TX_TIME_DAYS', 'CUSTOMER_ID', 'TERMINAL_ID',
-                                                  'TX_AMOUNT'])
+                                         columns=['TX_TIME_SECONDS', 'TX_TIME_DAYS', 'CUSTOMER_ID', 'TERMINAL_ID', 'TX_AMOUNT'])
 
     if len(customer_transactions) > 0:
         customer_transactions['TX_DATETIME'] = pd.to_datetime(customer_transactions["TX_TIME_SECONDS"], unit='s',
@@ -327,12 +326,12 @@ if __name__ == "__main__":
         output_dir=str(output_dir)
     )
 
-    # # Split dataset
-    # from src.datasets.split_dataset import main as split_dataset_main
-    #
-    # train_df, validation_df, test_df = split_dataset_main(
-    #     transactions_df,
-    #     train_ratio=0.70,
-    #     validation_ratio=0.15,
-    #     output_dir= Path.joinpath(PROJECT_ROOT, "data")
-    # )
+    # Split dataset
+    from src.datasets.split_dataset import main as split_dataset_main
+
+    train_df, validation_df, test_df = split_dataset_main(
+        transactions_df,
+        train_ratio=0.70,
+        validation_ratio=0.15,
+        output_dir= Path.joinpath(PROJECT_ROOT, "data")
+    )

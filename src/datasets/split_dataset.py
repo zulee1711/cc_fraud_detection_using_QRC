@@ -217,19 +217,79 @@ def main(
     return train, validation, test
 
 #%%
-if __name__ == "__main__":
-    project_root = Path(__file__).resolve().parents[2]
+def split_features_by_dates(
+    full_features: pd.DataFrame,
+    train: pd.DataFrame,
+    validation: pd.DataFrame,
+    test: pd.DataFrame,
+    datetime_column: str = "TX_DATETIME",
+):
+    full_features = full_features.copy()
 
-    raw_data_dir = Path.joinpath(project_root, "raw_data")
-    processed_data_dir = Path.joinpath(project_root, "data")
-
-    transactions = loading(
-        raw_data_dir / "transactions.pkl"
+    full_features[datetime_column] = pd.to_datetime(
+        full_features[datetime_column]
     )
 
-    train, validation, test = main(
-        transactions,
-        train_ratio=0.70,
-        validation_ratio=0.15,
-        output_dir=processed_data_dir
+    train_dt = pd.to_datetime(train[datetime_column])
+    validation_dt = pd.to_datetime(validation[datetime_column])
+    test_dt = pd.to_datetime(test[datetime_column])
+
+    train_start = train_dt.dt.normalize().min()
+    validation_start = validation_dt.dt.normalize().min()
+    test_start = test_dt.dt.normalize().min()
+
+    train_features = full_features[
+        (full_features[datetime_column] >= train_start)
+        & (full_features[datetime_column] < validation_start)
+        ].copy()
+
+    validation_features = full_features[
+        (full_features[datetime_column] >= validation_start)
+        & (full_features[datetime_column] < test_start)
+        ].copy()
+
+    test_features = full_features[
+        full_features[datetime_column] >= test_start
+        ].copy()
+
+    train_features = (
+        train_features
+        .sort_values(datetime_column)
+        .reset_index(drop=True)
     )
+
+    validation_features = (
+        validation_features
+        .sort_values(datetime_column)
+        .reset_index(drop=True)
+    )
+
+    test_features = (
+        test_features
+        .sort_values(datetime_column)
+        .reset_index(drop=True)
+    )
+
+    return (
+        train_features,
+        validation_features,
+        test_features,
+    )
+
+# #%%
+# if __name__ == "__main__":
+#     project_root = Path(__file__).resolve().parents[2]
+#
+#     raw_data_dir = Path.joinpath(project_root, "raw_data")
+#     processed_data_dir = Path.joinpath(project_root, "data")
+#
+#     transactions = loading(
+#         raw_data_dir / "transactions.pkl"
+#     )
+#
+#     train, validation, test = main(
+#         transactions,
+#         train_ratio=0.70,
+#         validation_ratio=0.15,
+#         output_dir=processed_data_dir
+#     )

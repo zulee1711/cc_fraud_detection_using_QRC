@@ -4,6 +4,7 @@ from pathlib import Path
 import pandas as pd
 from typing import Optional
 from .logger import get_logger
+from .help_functions import coerce_numeric_columns
 
 logger = get_logger(__name__)
 
@@ -78,19 +79,21 @@ def loading(
 #%%
 def load_daily_files(
         input_dir:str | Path,
-        start_date:str,
-        end_date:str,
+        start_date:Optional[str] = None,
+        end_date:Optional[str] = None,
 ):
     input_dir = Path(input_dir)
 
-    begin_file = f"{start_date}.pkl"
-    end_file = f"{end_date}.pkl"
+    files = sorted(input_dir.glob("*.pkl"))
 
-    files = sorted(
-        file for file in input_dir.iterdir()
-        if file.suffix == ".pkl"
-        and begin_file <= file.name <= end_file
-    )
+    if not files:
+        raise FileNotFoundError(f"No .pkl files found in {input_dir}.")
+
+    start_date = str(start_date) if start_date else files[0].stem
+    end_date = str(end_date) if end_date else files[-1].stem
+
+    logger.info(f"Loading files from {start_date} to {end_date}")
+    files = [f for f in files if str(start_date) <= f.stem <= str(end_date)]
 
     if not files:
         raise FileNotFoundError(
@@ -98,27 +101,26 @@ def load_daily_files(
             f"between {start_date} and {end_date}."
         )
 
-    logger.info(
-        f"Reading {len(files)} daily files from "
-        f"{start_date} to {end_date}."
+    df = pd.concat(
+        [loading(f) for f in files],
+        ignore_index=True,
     )
 
-    frames = []
+    NUMERIC_COLUMNS = [
+        'TRANSACTION_ID',
+        'TX_AMOUNT',
+        'TX_TIME_SECONDS',
+        'TX_TIME_DAYS',
+        'TX_FRAUD',
+        'TX_FRAUD_SCENARIO',
+    ]
 
-    for file in files:
-        logger.info(f"Loading {file.name}")
-
-        df = loading(file)
-        frames.append(df)
-
-    df_final = pd.concat(
-        frames,
-        ignore_index=True
-    )
+    df = coerce_numeric_columns(df, NUMERIC_COLUMNS)
+    df['TX_DATETIME'] = pd.to_datetime(df['TX_DATETIME'])
 
     df_final = (
-        df_final
-        .sort_values("TRANSACTION_ID")
+        df
+        .sort_values("TX_DATETIME")
         .reset_index(drop=True)
     )
 
@@ -131,6 +133,14 @@ def load_daily_files(
     )
 
     return df_final
+
+#%%
+def load_splits(data_root):
+    root = Path(data_root)
+    return {
+        s: load_daily_files(root / s)
+        for s in ('train', 'validation', 'test')
+    }
 
 #%%
 def dumping(
