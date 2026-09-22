@@ -34,9 +34,12 @@ python3 -m venv .venv
 source .venv/bin/activate
 ```
 
-### Install dependencies:
+### Install the project:
 ```bash
-pip install -r requirements.txt
+pip install -e .
+```
+This installs the `qrc` package in editable mode (your edits to `qrc/` take
+effect immediately, no reinstall needed) along with its dependencies.
 ```
 
 ## Project structure
@@ -63,7 +66,8 @@ cc_fraud_detection_using_QRC/
 
 ### Importing project code
 
-Run Python from the repository root and import through the `qrc` package:
+After `pip install -e .` the `qrc` package is importable from anywhere — you no
+longer need to run Python from the repository root or set `PYTHONPATH`:
 
 ```python
 from qrc.encodings import AngleEncoding
