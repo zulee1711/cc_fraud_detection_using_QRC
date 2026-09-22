@@ -2,7 +2,7 @@ import numpy as np
 from sklearn.linear_model import RidgeClassifier, LogisticRegression
 from sklearn.metrics import f1_score, precision_score, recall_score, roc_auc_score, classification_report
 from sklearn.model_selection import train_test_split
-from typing import Dict, Tuple
+from typing import Dict, Tuple, Optional
 from sklearn.preprocessing import StandardScaler
 
 class ClassicalReadout:
@@ -10,23 +10,33 @@ class ClassicalReadout:
     Classical linear readout for QUC. The sequence of measured quantum stats for each input sample
     are flattened into a single feature vector and passed to a classical linear classifier.
     """
-    def __init__(self, model_type: str = "ridge", alpha: float = 1.0, class_weight: str = "balanced"):
+    def __init__(self, model_type: str = "ridge", alpha: float = 1.0, use_balanced_weights: bool = False, decision_threshold: Optional[float] = None):
         """
         Initialize classical readout
 
         Args:
             model_type: Ridge Clssifier or Logisitic Regression
             alpha : Regularization parameter for Ridge Classifier. For LogisticRegression, inverse C = 1/alpha is used.
-            class_weight: 'balanced' to handle severe financial fraud class imbalance.
+            decision_threshold : Cutoff for binary classification
+            use_balanced_weights : Only used if decision_threshold is None. Applies balanced loss weights
         """
-        self.model_type = model_type
+        self.model_type = model_type.lower()
+        self.alpha = alpha
         self.scaler = StandardScaler()  # normalizes each feature using statistics calculated from training set              
+
+        # Set threshold manually
+        if decision_threshold is not None:
+             self.class_weight = None
+             self.decision_threshold = decision_threshold
+        else :
+             self.class_weight = "balanced" if use_balanced_weights else None
+             self.decision_threshold = 0.0 if self.model_type == "ridge" else 0.5
 
         # Select classical model for readout
         if model_type == "ridge":
-            self.model = RidgeClassifier(alpha=alpha, class_weight=class_weight)
+            self.model = RidgeClassifier(alpha=alpha, class_weight=self.class_weight)
         elif model_type == "logistic":
-            self.model = LogisticRegression(C=1.0/alpha, class_weight=class_weight, max_iter=1000)
+            self.model = LogisticRegression(C=1.0/alpha, class_weight=self.class_weight, max_iter=1000)
         else:
             raise ValueError(f"Unsupported model type: {model_type}")
 
@@ -47,8 +57,14 @@ class ClassicalReadout:
         if fit_scaler:
             return self.scaler.fit_transform(X_flat)
         return self.scaler.transform(X_flat)
-    
 
+    def _get_scores(self, X: np.ndarray) -> np.ndarray:
+         if self.model_type == "logistic":
+              return self.model.predict_proba(X)[:,1]   # prob in [0,1] that a sequence is fraud
+         elif self.model_type == "ridge":
+              return self.model.decision_function(X)    # distance to hyperplane (-inf, +inf)
+         
+    
     def fit_evaluate(
             self, 
             reservoir_outputs: np.ndarray, 
@@ -70,11 +86,16 @@ class ClassicalReadout:
 
             self.model.fit(X_train, y_train)
 
-            y_pred = self.model.predict(X_test)
+            # Extract decision scores
+            test_scores = self._get_scores(X_test)
+
+            # Apply thresholds
+            y_pred = (test_scores >= self.decision_threshold).astype(int)
 
             # Calculate metrics
             metrics = {
                 "f1_score": f1_score(y_test, y_pred, zero_division=0),
+                "threshold_used": self.decision_threshold
             }
 
             return metrics, y_test, y_pred
