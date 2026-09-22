@@ -32,8 +32,10 @@ class Reservoir:
 
     name = "reservoir"
 
-    def __init__(self, num_qubits):
-        self.num_qubits = num_qubits
+    def __init__(self, num_input_qubits, num_mem_qubits):
+        self.num_input_qubits = num_input_qubits
+        self.num_mem_qubits = num_mem_qubits
+        self.num_qubits = self.num_input_qubits + self.num_mem_qubits
         self._circuit = None
 
     def _build(self):
@@ -61,16 +63,17 @@ class RandomCircuitReservoir(Reservoir):
     it the control for "does the Hamiltonian structure buy us anything at all?".
     """
 
-    def __init__(self, num_qubits, depth=2, entangler="cx", rng=None):
+    def __init__(self, num_input_qubits, num_mem_qubits, depth=2, entangler="cx", rng=None):
         """
         Args:
-            num_qubits (int): register size (n_in + n_mem).
+            num_input_qubits (int)
+            num_mem_qubits (int)
             depth (int): number of entangler + rotation layers.
             entangler (str): "cx" for plain CNOTs, "cry" for controlled Ry with
                 random angles.
             rng: seed or numpy Generator fixing the random angles.
         """
-        super().__init__(num_qubits)
+        super().__init__(num_input_qubits, num_mem_qubits)
         if entangler not in ("cx", "cry"):
             raise ValueError(f"entangler must be 'cx' or 'cry', got {entangler!r}")
 
@@ -79,8 +82,8 @@ class RandomCircuitReservoir(Reservoir):
         self.entangler = entangler
 
         rng = np.random.default_rng(rng)
-        self.local_angles = rng.uniform(0, 2 * np.pi, (depth, num_qubits, 2))
-        self.ctrl_angles = rng.uniform(0, 2 * np.pi, (depth, num_qubits))
+        self.local_angles = rng.uniform(0, 2 * np.pi, (depth, self.num_qubits, 2))
+        self.ctrl_angles = rng.uniform(0, 2 * np.pi, (depth, self.num_qubits))
 
     def _build(self):
         qc = QuantumCircuit(self.num_qubits, name=self.name)
@@ -107,8 +110,8 @@ class HamiltonianReservoir(Reservoir):
     hardware that evolution is approximated by `steps` Trotter repetitions.
     """
 
-    def __init__(self, hamiltonian, time=1.0, steps=1):
-        super().__init__(hamiltonian.num_qubits)
+    def __init__(self, hamiltonian, num_input_qubits, time=1.0, steps=1):
+        super().__init__(num_input_qubits, hamiltonian.num_qubits - num_input_qubits)
         self.name = hamiltonian.name
         self.hamiltonian = hamiltonian
         self.time = time

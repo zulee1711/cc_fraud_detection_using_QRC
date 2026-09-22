@@ -4,8 +4,8 @@ class QRCProtocol:
     """
 
     def __init__(self, encoder, reservoir, backend):
-        if encoder.num_qubits != reservoir.num_qubits:
-            raise ValueError("encoder and reservoir must use the same number of qubits")
+        if encoder.num_qubits != reservoir.num_input_qubits:
+            raise ValueError("encoder and reservoir input sub-system must use the same number of qubits")
         self.encoder = encoder
         self.reservoir = reservoir
         self.backend = backend

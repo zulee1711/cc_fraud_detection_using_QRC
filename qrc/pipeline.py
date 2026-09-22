@@ -7,10 +7,10 @@ from .protocol import QRCProtocol
 from .readout import ClassicalReadout
 
 
-def run_random_reservoir_experiment(data, n_qubits = 4, depth = 2, seed = 42, alpha = 1.0):
-    encoder = AngleEncoding(num_qubits=n_qubits)
-    reservoir = RandomCircuitReservoir(num_qubits=n_qubits, depth=depth, rng=seed)
-    observables = [("Z", index) for index in range(n_qubits)]
+def run_random_reservoir_experiment(data, n_input_qubits = 4, n_mem_qubits = 2, depth = 2, seed = 42, alpha = 1.0):
+    encoder = AngleEncoding(num_qubits=n_input_qubits)
+    reservoir = RandomCircuitReservoir(num_input_qubits=n_input_qubits, num_mem_qubits=n_mem_qubits, depth=depth, rng=seed)
+    observables = [("Z", index) for index in range(n_input_qubits+n_mem_qubits)]
     backend = StatevectorBackend(observables)
 
     protocol = QRCProtocol(encoder, reservoir, backend)
