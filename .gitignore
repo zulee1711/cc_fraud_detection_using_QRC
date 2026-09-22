@@ -221,3 +221,5 @@ __marimo__/
 
 # Raw data
 raw_data/*
+
+.idea/
