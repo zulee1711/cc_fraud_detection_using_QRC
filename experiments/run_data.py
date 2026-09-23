@@ -1,16 +1,20 @@
 #%%
-import sys
-
 from pathlib import Path
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
 
-from utils import *
-from data_processing import *
-from feature_engineering import FeatureEngineer
-from feature_analysis import FeatureAnalyzer
-from data_processing import DataProcessor
+import pandas as pd
+
+from qrc.logger import get_logger
+from qrc.datasets import load_splits
+from qrc.analysis import overview, get_daily_stats, FeatureAnalyzer
+from qrc.analysis.plots import (
+    plot_amount_time_distributions,
+    plot_fraud_and_transactions_stats,
+    plot_fraud_rate_over_time,
+)
+from qrc.features import FeatureEngineer
+from qrc.processing import DataProcessor
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 logger = get_logger(__name__)
 

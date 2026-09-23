@@ -6,13 +6,6 @@ import numpy as np
 import pandas as pd
 
 #%%
-def coerce_numeric_columns(df, numeric_cols:list[str]):
-    """Convert numeric-looking object columns to numeric safely."""
-    for col in numeric_cols:
-        if col in df.columns:
-            df[col] = pd.to_numeric(df[col], errors='coerce')
-    return df
-
 #%%
 def clean_amount(df):
     amount = pd.to_numeric(

@@ -3,8 +3,15 @@ import os
 from pathlib import Path
 import pandas as pd
 from typing import Optional
-from .logger import get_logger
-from .help_functions import coerce_numeric_columns
+from ..logger import get_logger
+
+
+def coerce_numeric_columns(df, numeric_cols: list[str]):
+    """Convert numeric-looking object columns to numeric safely."""
+    for col in numeric_cols:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors='coerce')
+    return df
 
 logger = get_logger(__name__)
 

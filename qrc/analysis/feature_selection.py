@@ -5,7 +5,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.feature_selection import mutual_info_classif
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
-from data_processing.core import get_numeric_features, pearson_correlation
+from .core import get_numeric_features, pearson_correlation
 
 #%%
 EXCLUDED_FEATURES = [

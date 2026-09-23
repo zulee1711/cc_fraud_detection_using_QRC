@@ -1,11 +1,11 @@
 """End-to-end QRC pipeline."""
 
-from .encodings import AngleEncoding
-from .reservoirs import RandomCircuitReservoir
-from .backends.statevector import StatevectorBackend
-from .protocol import QRCProtocol
-from .readout import ClassicalReadout
-from .observables import build_observables
+from qrc.encodings import AngleEncoding
+from qrc.reservoirs import RandomCircuitReservoir
+from qrc.backends.statevector import StatevectorBackend
+from qrc.protocol import QRCProtocol
+from qrc.readout import ClassicalReadout
+from qrc.observables import build_observables
 
 
 def run_random_reservoir_experiment(

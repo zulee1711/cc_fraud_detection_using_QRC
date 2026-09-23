@@ -46,23 +46,57 @@ effect immediately, no reinstall needed) along with its dependencies.
 
 ```
 cc_fraud_detection_using_QRC/
-├── qrc/                  # QRC library — the import root for project code
-│   ├── encodings.py      # input encodings (AngleEncoding, ...)
-│   ├── hamiltonians.py   # reservoir Hamiltonians
-│   ├── trotter.py        # Trotterised time evolution
-│   ├── reservoirs.py     # reservoir definitions
-│   ├── readout.py        # measurement / readout layer
-│   ├── protocol.py       # end-to-end QRC protocol
-│   └── backends/         # execution backends
+├── qrc/                    # the project package — the import root
+│   │                       #   datasets → features → analysis → processing →
+│   │                       #   quantum core → readout  (imports flow one way;
+│   │                       #   the quantum core imports none of the layers above)
+│   ├── datasets/           # transaction simulation, splitting, file I/O
+│   │   ├── create_dataset.py
+│   │   ├── split_dataset.py
+│   │   └── dataIO.py
+│   ├── features/           # fraud feature engineering
+│   │   ├── feature_engineer.py
+│   │   └── help_functions.py
+│   ├── analysis/           # exploration, feature scoring and selection
+│   │   ├── core.py
+│   │   ├── plots.py
+│   │   ├── feature_analysis.py
+│   │   └── feature_selection.py
+│   ├── processing.py       # final model input: selection, imputation, scaling
+│   ├── sequences.py        # (to come) 2D features → (M, L, N) windows
+│   ├── encodings.py        # input encodings (AngleEncoding, ...)
+│   ├── hamiltonians.py     # reservoir Hamiltonians
+│   ├── trotter.py          # Trotterised time evolution
+│   ├── reservoirs.py       # reservoir definitions
+│   ├── observables.py      # measured observables
+│   ├── protocol.py         # encode → evolve → measure loop
+│   ├── readout.py          # classical readout layer
+│   ├── logger.py
+│   └── backends/           # execution backends
 │       ├── base.py
 │       ├── sampled.py
 │       ├── spinpulse.py
 │       └── statevector.py
-├── examples/             # spin-pulse usage examples
-├── notebook/             # scratch notebooks
-├── thelab/               # reference implementation (git submodule)
-└── raw_data/             # datasets you download (git-ignored)
+├── experiments/            # experiment wiring — scripts, not a package
+│   ├── run_data.py         # data → features → analysis → model input
+│   ├── pipeline.py         # one end-to-end QRC run
+│   └── cli.py              # (to come) launcher
+├── examples/               # spin-pulse usage examples
+├── notebook/               # scratch notebooks
+├── thelab/                 # reference implementation (git submodule)
+├── raw_data/               # source datasets (git-ignored)
+└── data/                   # daily train/validation/test splits (git-ignored)
+    ├── train/
+    ├── validation/
+    └── test/
 ```
+
+### Where the dataset goes
+
+`qrc/datasets/` is code. The dataset *files* live in `data/`, which is git-ignored.
+
+`data/` should contain the daily `.pkl` splits under `train/`, `validation/` and `test/`, produced by `split_dataset.py` and read by `experiments/run_data.py`.
+They can be found on [the Sharepoint](https://tud365.sharepoint.com/sites/stud-JIPQuobly/Gedeelde%20documenten/Forms/AllItems.aspx?d=w85e103b01b5d4ec189c07807a959dabf&csf=1&web=1&e=Gnh3Ry&CID=b41e9a08%2D4ee4%2D4a04%2D8b29%2Dd93caea790eb&FolderCTID=0x0120005EE06ABC7353574FA007EB3176FE5935&id=%2Fsites%2Fstud%2DJIPQuobly%2FGedeelde%20documenten%2FDatasets%2Fsimulated%5Fdataset).
 
 ### Importing project code
 

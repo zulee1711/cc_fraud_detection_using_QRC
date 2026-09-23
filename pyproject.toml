@@ -11,28 +11,26 @@ license = "GPL-3.0-or-later"
 license-files = ["LICENSE"]
 requires-python = ">=3.11"
 
-# Only what the `qrc` package itself imports. Everything else (notebooks,
-# the spin-pulse examples, the data-processing side) lives in the extras
-# below, so a plain install stays light.
+# Everything the project imports. Kept as one flat list so a single
+# `pip install -e .` gives a working checkout — no extras to remember.
 dependencies = [
-    "numpy",
+    # quantum core
     "qiskit",
-    "scikit-learn",
-]
-
-[project.optional-dependencies]
-# Tooling and the dependencies used outside the `qrc` package: the
-# spin-pulse examples, the notebooks, hyperparameter search and the
-# pandas-based data-processing modules.
-dev = [
     "spin-pulse",
-    "optuna",
-    "jupyterlab",
+    # numerics / data
+    "numpy",
     "pandas",
+    "scipy",
+    "scikit-learn",
+    "joblib",
+    # plotting
     "matplotlib",
     "seaborn",
-    "scipy",
+    # hyperparameter search (experiments)
+    "optuna",
+    # notebooks under notebook/ and examples/
+    "jupyterlab",
 ]
 
 [tool.setuptools.packages.find]
-include = ["qrc*"]
+include = ["qrc*"]  # experiments/ is scripts, deliberately not packaged

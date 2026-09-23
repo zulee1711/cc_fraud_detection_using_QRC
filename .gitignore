@@ -219,14 +219,15 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
-# Raw data
-raw_data/*
-logs/*
-reference_data/*
-results/*
+# Data and run artefacts, repository root only.
+# The leading slash matters: a bare `results/` would also ignore `qrc/results/`.
+/raw_data/*
+/logs/*
+/reference_data/*
+/results/*
 
-# Generated datasets (see Readme: download from SharePoint)
-data/
+# Generated datasets (see Readme: download from SharePoint).
+/data/
 
 # IDE
 .idea/

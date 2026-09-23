@@ -1,7 +1,7 @@
 #%%
 from pathlib import Path
 
-from utils import (
+from .help_functions import (
     clean_amount,
     add_time_features,
     customer_spending_behaviour_rolling,
@@ -9,10 +9,9 @@ from utils import (
     add_behavior,
     add_combination_features,
     add_deviation_features,
-    dumping,
 )
 
-from datasets import split_features_by_dates
+from ..datasets import dumping, split_features_by_dates
 
 #%%
 class FeatureEngineer:

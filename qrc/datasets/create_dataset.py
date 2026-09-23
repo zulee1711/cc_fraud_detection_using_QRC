@@ -1,6 +1,5 @@
 #%%
 import os
-import sys
 
 import numpy as np
 import pandas as pd
@@ -11,7 +10,7 @@ import random
 
 from pathlib import Path
 from types import SimpleNamespace
-from utils import get_logger
+from ..logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -311,8 +310,6 @@ if __name__ == "__main__":
     r = 5
 
     PROJECT_ROOT = Path(__file__).resolve().parents[2]
-    if str(PROJECT_ROOT) not in sys.path:
-        sys.path.insert(0, str(PROJECT_ROOT))
 
     output_dir =  Path.joinpath(PROJECT_ROOT, "raw_data")
 
@@ -327,7 +324,7 @@ if __name__ == "__main__":
     )
 
     # Split dataset
-    from src.datasets.split_dataset import main as split_dataset_main
+    from .split_dataset import main as split_dataset_main
 
     train_df, validation_df, test_df = split_dataset_main(
         transactions_df,

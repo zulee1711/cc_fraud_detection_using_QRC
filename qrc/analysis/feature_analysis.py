@@ -1,11 +1,16 @@
 #%%
-import sys
-from utils import *
-from data_processing.core import (
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+
+from ..logger import get_logger
+from ..datasets import dumping
+from .core import (
     sample_for_feature_analysis,
     correlation_matrix,
 )
-from data_processing.plots import (
+from .plots import (
     plot_correlation_matrix,
     plot_pearson_correlation,
     plot_information_gain,
@@ -24,9 +29,6 @@ from .feature_selection import (
 
 logger = get_logger(__name__)
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
 from dataclasses import dataclass, field
 
 #%%
