@@ -40,16 +40,12 @@ pip install -e .
 ```
 This installs the `qrc` package in editable mode (your edits to `qrc/` take
 effect immediately, no reinstall needed) along with its dependencies.
-```
 
 ## Project structure
 
 ```
 cc_fraud_detection_using_QRC/
 ├── qrc/                    # the project package — the import root
-│   │                       #   datasets → features → analysis → processing →
-│   │                       #   quantum core → readout  (imports flow one way;
-│   │                       #   the quantum core imports none of the layers above)
 │   ├── datasets/           # transaction simulation, splitting, file I/O
 │   │   ├── create_dataset.py
 │   │   ├── split_dataset.py
