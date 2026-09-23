@@ -224,3 +224,4 @@ raw_data/*
 logs/*
 reference_data/*
 results/*
+data/

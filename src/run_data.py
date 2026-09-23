@@ -23,7 +23,7 @@ PLOTS = True
 SAVES = True
 
 #%% For debugging
-DEBUG = False
+DEBUG = True
 if DEBUG:
     (PLOTS, SAVES) = (False, False)
 
@@ -118,14 +118,38 @@ feature_sets = {
     15: experiments[99].candidate_feature_sets[15],
 }
 
+manual_feature_sets = {
+    6: [
+        'TERMINAL_RISK_7D',
+        'TERMINAL_RISK_CHANGE_7D_30D',
+        'TERMINAL_RISK_CHANGE_7D_180D',
+        'CUSTOMER_AMOUNT_RATIO_180D',
+        # 'TERMINAL_RISK_CHANGE_7D_90D',
+        # 'TERMINAL_RISK_30D',
+        'CUSTOMER_AMOUNT_RATIO_90D',
+        'CUSTOMER_AMOUNT_DEVIATION_30D',
+        # 'CUSTOMER_AMOUNT_MULTIPLIER_30D',
+        # 'CUSTOMER_AMOUNT_RATIO_30D',
+    ],
+}
+
 #%% Data Processing
 processor = DataProcessor(
-    feature_sets=feature_sets,
+    feature_sets=manual_feature_sets,  # feature_sets,
 )
 
-qrc_5 = processor.process(
+input_data = processor.process(
     train_features,
     validation_features,
     test_features,
-    feature_set=5,
+    feature_set=6,
 )
+
+#%%
+X_train = input_data['X_train']
+X_validation = input_data['X_validation']
+X_test = input_data['X_test']
+y_train = input_data['y_train']
+y_validation = input_data['y_validation']
+y_test = input_data['y_test']
+input_features = input_data['features']
