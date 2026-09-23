@@ -30,6 +30,8 @@ dev = [
     "jupyterlab",
     "pandas",
     "matplotlib",
+    "seaborn",
+    "scipy",
 ]
 
 [tool.setuptools.packages.find]

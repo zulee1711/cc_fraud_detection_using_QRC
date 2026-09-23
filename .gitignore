@@ -221,5 +221,12 @@ __marimo__/
 
 # Raw data
 raw_data/*
+logs/*
+reference_data/*
+results/*
 
+# Generated datasets (see Readme: download from SharePoint)
+data/
+
+# IDE
 .idea/
