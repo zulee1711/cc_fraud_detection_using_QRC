@@ -3,8 +3,10 @@ from pathlib import Path
 
 import pandas as pd
 
+import qrc
 from qrc.logger import get_logger
-from qrc.datasets import load_splits
+from qrc.datasets import load_splits, split_dataset
+from qrc.datasets.create_dataset import generate_dataset, add_frauds
 from qrc.analysis import overview, get_daily_stats, FeatureAnalyzer
 from qrc.analysis.plots import (
     plot_amount_time_distributions,
@@ -14,7 +16,7 @@ from qrc.analysis.plots import (
 from qrc.features import FeatureEngineer
 from qrc.processing import DataProcessor
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(qrc.__file__).resolve().parents[1]
 
 logger = get_logger(__name__)
 
@@ -27,7 +29,7 @@ PLOTS = True
 SAVES = True
 
 #%% For debugging
-DEBUG = True
+DEBUG = False
 if DEBUG:
     (PLOTS, SAVES) = (False, False)
 
@@ -51,8 +53,26 @@ NUMERIC_COLUMNS = [
 ]
 
 #%%
-splits = load_splits(DATA)
-train, validation, test = (splits['train'], splits['validation'], splits['test'])
+GENERATE = True
+
+SIMULATION = dict(
+    n_customers=100,
+    n_terminals=1000,
+    nb_days=365,  # must cover the largest feature window
+    start_date="2025-01-01",
+    r=5,
+    default_random_state=0,
+)
+
+#%%
+if GENERATE:
+    customer_profiles, terminal_profiles, transactions = generate_dataset(**SIMULATION)
+    transactions = add_frauds(customer_profiles, terminal_profiles, transactions)
+    train, validation, test = split_dataset(transactions, train_ratio=0.70, validation_ratio=0.15)
+else:
+    splits = load_splits(DATA)
+    train, validation, test = (splits['train'], splits['validation'], splits['test'])
+
 full_data = pd.concat([train, validation, test], ignore_index=True)
 full_data.drop(columns=['TX_FRAUD_SCENARIO'], inplace=True)
 
