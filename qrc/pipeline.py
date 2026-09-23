@@ -5,20 +5,29 @@ from .reservoirs import RandomCircuitReservoir
 from .backends.statevector import StatevectorBackend
 from .protocol import QRCProtocol
 from .readout import ClassicalReadout
+from .observables import build_observables
 
 
-def run_random_reservoir_experiment(data, n_input_qubits = 4, n_mem_qubits = 2, depth = 2, seed = 42, alpha = 1.0):
+def run_random_reservoir_experiment(
+        data,
+        n_input_qubits = 4,
+        n_mem_qubits = 2,
+        depth = 2,
+        observables_spec = "Z",
+        seed = 42,
+        alpha = 1.0
+):
     encoder = AngleEncoding(num_qubits=n_input_qubits)
     reservoir = RandomCircuitReservoir(num_input_qubits=n_input_qubits, num_mem_qubits=n_mem_qubits, depth=depth, rng=seed)
-    observables = [("Z", index) for index in range(n_input_qubits+n_mem_qubits)]
-    backend = StatevectorBackend(observables)
+    backend = StatevectorBackend()
+    observables = build_observables(observables_spec, reservoir.num_qubits)
 
-    protocol = QRCProtocol(encoder, reservoir, backend)
+    protocol = QRCProtocol(encoder, reservoir, observables, backend)
 
     train_features = protocol.run(data.X_train)
 
-    readout = ClassicalReadout(model_type="logistic", alpha=alpha)
-    metrics, y_readout, predictions = readout.fit_evaluate(
+    readout = ClassicalReadout(alpha=alpha)
+    metrics, y_readout, predictions, _ = readout.fit_evaluate(
         train_features,
         data.y_train,
     )

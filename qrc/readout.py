@@ -1,13 +1,8 @@
 """"
 The quantum reservoir produces one final measurement vector for each input sequence.
-For a reservoir with n qubits, the readout contains:
-    - n local Z expectation values : <Z_i>
-    - n-1 nearest-neighbor ZZ expectation values : <Z_i Z_{i+1}>
-
-The number of measured observables :
-    N = 2*n - 1
-    
-    where : n = n_in + n_mem
+Which observables are measured is specified earlier in the protocol, and it defines the number of measured observables N.
+For example, for a reservoir with n qubits, and a choice of measuring all n local Z expectation values (the <Z_i>)
+and all n-1 nearest-neighbor ZZ expectation values (the <Z_i Z_{i+1}>), we have N = 2*n - 1.
 
 For M input sequences, the reservoir has shape :
     (M, N)
