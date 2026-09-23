@@ -1,4 +1,0 @@
-spin-pulse
-optuna
-qiskit
-jupyterlab

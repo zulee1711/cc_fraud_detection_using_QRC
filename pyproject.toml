@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cc-fraud-detection-qrc"
+version = "0.1.0"
+description = "Quantum Reservoir Computing (QRC) for credit-card fraud detection."
+readme = "Readme.md"
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
+requires-python = ">=3.11"
+
+# Only what the `qrc` package itself imports. Everything else (notebooks,
+# the spin-pulse examples, the data-processing side) lives in the extras
+# below, so a plain install stays light.
+dependencies = [
+    "numpy",
+    "qiskit",
+    "scikit-learn",
+]
+
+[project.optional-dependencies]
+# Tooling and the dependencies used outside the `qrc` package: the
+# spin-pulse examples, the notebooks, hyperparameter search and the
+# pandas-based data-processing modules.
+dev = [
+    "spin-pulse",
+    "optuna",
+    "jupyterlab",
+    "pandas",
+    "matplotlib",
+    "seaborn",
+    "scipy",
+]
+
+[tool.setuptools.packages.find]
+include = ["qrc*"]
