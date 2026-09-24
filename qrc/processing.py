@@ -73,5 +73,9 @@ class DataProcessor:
             "y_validation": validation["TX_FRAUD"].to_numpy(),
             "y_test": test["TX_FRAUD"].to_numpy(),
 
+            "groups_train": train["CUSTOMER_ID"].to_numpy(),
+            "groups_validation": validation["CUSTOMER_ID"].to_numpy(),
+            "groups_test": test["CUSTOMER_ID"].to_numpy(),
+
             "features": self.feature_sets[feature_set],
         }

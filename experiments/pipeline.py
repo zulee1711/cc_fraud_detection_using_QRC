@@ -13,6 +13,7 @@ from qrc.datasets.create_dataset import generate_dataset, add_frauds
 from qrc.features import FeatureEngineer
 from qrc.processing import DataProcessor
 from qrc.datasets import split_dataset
+from qrc.sequences import window_by_customer_id
 
 
 def run_random_reservoir_experiment(
@@ -101,14 +102,15 @@ if __name__ == "__main__":
         feature_set=6,
     )
 
-    # Waiting for the implementation of the transactions windowing
-    X_train = input_data['X_train'][:, None, :]
-    X_validation = input_data['X_validation'][:, None, :]
-    X_test = input_data['X_test'][:, None, :]
-    y_train = input_data['y_train']
-    y_validation = input_data['y_validation']
-    y_test = input_data['y_test']
-    input_features = input_data['features']
+    L = 3
+    windowed_input_data = window_by_customer_id(input_data, L)
+    X_train = windowed_input_data['X_train']
+    X_validation = windowed_input_data['X_validation']
+    X_test = windowed_input_data['X_test']
+    y_train = windowed_input_data['y_train']
+    y_validation = windowed_input_data['y_validation']
+    y_test = windowed_input_data['y_test']
+    input_features = windowed_input_data['features']
 
 
     print(f"X_train {X_train.shape}, frauds {y_train.sum()}/{len(y_train)}")
