@@ -104,18 +104,97 @@ from qrc.encodings import AngleEncoding
 from qrc.hamiltonians import build_disordered_tfim
 ```
 
-## Run examples:
+## Run experiments:
 You can run the Jupyter Notebook or the Python script to see the basic usage of the application.
 
 To run the Python script, use the following commands:
 On Windows:
 ```bash
-cd examples
-python BasicUsage.py
+cd experiments
+python pipeline.py
 ```
 
 On macOS/Linux:
 ```bash
-cd examples
-python3 BasicUsage.py
+cd experiments
+python3 pipeline.py
+```
+
+## Run a small end-to-end test
+The complete pipeline can be tested using a smaller simulated dataset. The end-to-end pipeline is in:
+`experiments/pipeline.py`
+experiments/pipeline.py
+The dataset is generated at the beginning of this file:
+
+SIMULATION = dict(
+    n_customers=10,
+    n_terminals=100,
+    nb_days=365,
+    start_date="2025-01-01",
+    r=5,
+    default_random_state=0,
+)
+### Use a smaller dataset
+For a quick test, reduce parameters in the `SIMULATION` dictionary to generate a smaller dataset. For example:
+```python
+SIMULATION = dict(
+    n_customers=5,
+    n_terminals=20,
+    nb_days=10,
+    start_date="2025-01-01",
+    r=5,
+    default_random_state=0,
+)
+```
+
+Then run:
+```bash
+python experiments/pipeline.py
+```
+The pipeline will:
+```
+Generate dataset
+      ↓
+Add frauds
+      ↓
+Split train / validation / test
+      ↓
+Feature Engineering
+      ↓
+Skip Feature Analysis
+      ↓
+DataProcessor
+      ↓
+Customer windowing
+      ↓
+QRC
+```
+
+### Skip Feature Analysis
+`pipeline.py` already skips Feature Analysis. It uses the manually defined feature set:
+
+```python
+manual_feature_sets = {
+    6: [
+        "TERMINAL_RISK_7D",
+        "TERMINAL_RISK_CHANGE_7D_30D",
+        "TERMINAL_RISK_CHANGE_7D_180D",
+        "CUSTOMER_AMOUNT_RATIO_180D",
+        "CUSTOMER_AMOUNT_RATIO_90D",
+        "CUSTOMER_AMOUNT_DEVIATION_30D",
+    ],
+}
+```
+This feature set is passed directly to DataProcessor:
+```python
+processor = DataProcessor(
+    feature_sets=manual_feature_sets,
+)
+
+input_data = processor.process(
+    train_features,
+    validation_features,
+    test_features,
+    feature_set=6,
+)
 ```
