@@ -12,7 +12,7 @@ logistic regression to predict whether each sequence correspond to fraud or not.
 """
 
 import numpy as np
-from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import LogisticRegression, Ridge
 from sklearn.metrics import f1_score, precision_score, recall_score, roc_auc_score
 from sklearn.model_selection import train_test_split
 from typing import Dict, Tuple
@@ -110,3 +110,58 @@ class ClassicalReadout:
             }
 
             return metrics, y_test, y_pred, test_scores
+
+
+class RegressionReadout:  
+    """
+    Ridge regression readout for continuous targets (for benchmarks such as the memory task).
+
+    Unlike ``ClassicalReadout.fit_evaluate``, the train/test split is left to the
+    caller: benchmark windows overlap in time, so the split must be chronological.
+    """
+    def __init__(self, alpha: float = 1e-6):
+        """
+        Args:
+            alpha : Ridge regularization strength. Kept small by default: the
+                benchmarks are noise-free, so we want to see what the reservoir
+                features can express.
+        """
+        self.alpha = alpha
+        self.scaler = StandardScaler()
+        self.model = Ridge(alpha=alpha)
+
+    def fit_evaluate(
+            self,
+            train_outputs: np.ndarray,
+            y_train: np.ndarray,
+            test_outputs: np.ndarray,
+            y_test: np.ndarray,
+        ) -> Tuple[Dict[str, float], np.ndarray]:
+            """
+            Fits on the training reservoir outputs and scores on the test ones.
+
+            Args :
+                train_outputs, test_outputs : reservoir measurements, shape (M, N)
+                y_train, y_test : continuous targets, shape (M,)
+
+            Returns :
+                metrics : Dictionary with
+                    nmse : mean squared error divided by the target variance
+                        (0 is perfect, 1 is no better than predicting the mean).
+                    capacity : squared correlation between prediction and target,
+                        in [0, 1]. Summed over delays it gives the reservoir's
+                        memory capacity.
+                y_pred : test predictions, shape (M_test,)
+            """
+            X_train = self.scaler.fit_transform(train_outputs)
+            X_test = self.scaler.transform(test_outputs)
+
+            self.model.fit(X_train, y_train)
+            y_pred = self.model.predict(X_test)
+
+            nmse = np.mean((y_pred - y_test) ** 2) / np.var(y_test)
+            # A constant prediction has no correlation with anything; avoid a NaN.
+            capacity = 0.0 if np.std(y_pred) == 0 else np.corrcoef(y_pred, y_test)[0, 1] ** 2
+
+            metrics = {"nmse": float(nmse), "capacity": float(capacity)}
+            return metrics, y_pred

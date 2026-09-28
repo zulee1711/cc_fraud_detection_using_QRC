@@ -58,6 +58,11 @@ cc_fraud_detection_using_QRC/
 │   │   ├── plots.py
 │   │   ├── feature_analysis.py
 │   │   └── feature_selection.py
+│   ├── benchmarks/         # synthetic tasks with known answers (memory, parity, NARMA10)
+│   │   ├── memory.py
+│   │   ├── parity.py
+│   │   ├── narma.py
+│   │   └── windows.py
 │   ├── processing.py       # final model input: selection, imputation, scaling
 │   ├── sequences.py        # (to come) 2D features → (M, L, N) windows
 │   ├── encodings.py        # input encodings (AngleEncoding, ...)
@@ -76,6 +81,7 @@ cc_fraud_detection_using_QRC/
 ├── experiments/            # experiment wiring — scripts, not a package
 │   ├── run_data.py         # data → features → analysis → model input
 │   ├── pipeline.py         # one end-to-end QRC run
+│   ├── run_benchmarks.py   # QRC on the synthetic benchmarks
 │   └── cli.py              # (to come) launcher
 ├── examples/               # spin-pulse usage examples
 ├── notebook/               # scratch notebooks
