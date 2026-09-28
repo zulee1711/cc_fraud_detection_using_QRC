@@ -128,7 +128,3 @@ def native_exchange(num_qubits, v=1.0, eta=1.0):
     ops = SparsePauliOp.from_sparse_list(pauli_list, num_qubits)
 
     return Hamiltonian("tfim-native", num_qubits, ops, params)
-
-
-if __name__ == "main":
-    tfim(3)

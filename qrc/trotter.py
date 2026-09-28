@@ -25,6 +25,7 @@ def pauli_rotation(qc, pauli, theta):
     if set(label) == {"I"}:
         return
 
+    theta = float(np.real_if_close(theta))
     active = [(i, p) for i, p in enumerate(reversed(label)) if p != "I"]
 
     # single-qubit
@@ -46,13 +47,13 @@ def pauli_rotation(qc, pauli, theta):
             qc.rzz(2 * theta, q1, q2)
 
         elif p1 == "X" and p2 == "X":
-            qc.h(q1)
-            qc.h(q2)
+            qc.ry(np.pi / 2, q1)
+            qc.ry(np.pi / 2, q2)
 
             qc.rzz(2 * theta, q1, q2)
 
-            qc.h(q1)
-            qc.h(q2)
+            qc.ry(-np.pi / 2, q1)
+            qc.ry(-np.pi / 2, q2)
 
         elif p1 == "Y" and p2 == "Y":
             qc.rx(np.pi / 2, q1)
