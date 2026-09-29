@@ -30,7 +30,15 @@ dependencies = [
     "optuna",
     # notebooks under notebook/ and examples/
     "jupyterlab",
+    # tests under tests/
+    "pytest",
 ]
 
 [tool.setuptools.packages.find]
 include = ["qrc*"]  # experiments/ is scripts, deliberately not packaged
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# experiments/ is not installed, so the repo root must be importable for the
+# tests that drive experiments.run_benchmarks.
+pythonpath = ["."]
