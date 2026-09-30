@@ -1,5 +1,5 @@
 """End-to-end QRC pipeline."""
-
+%##
 import pandas as pd
 
 from qrc.encodings import AngleEncoding
@@ -17,8 +17,12 @@ from qrc.sequences import window_by_customer_id
 
 
 def run_random_reservoir_experiment(
-        X_data,
-        y_data,
+        X_train,
+        y_train,
+        X_validation,
+        y_validation,
+        X_test,
+        y_test,
         n_input_qubits = 4,
         n_mem_qubits = 2,
         depth = 2,
@@ -33,16 +37,18 @@ def run_random_reservoir_experiment(
 
     protocol = QRCProtocol(encoder, reservoir, observables, backend)
 
-    train_features = protocol.run(X_data)
+    train_features = protocol.run(X_train)
+    validation_features = protocol.run(X_validation)
+    test_features = protocol.run(X_test)
 
     readout = ClassicalReadout(alpha=alpha)
-    metrics, y_readout, predictions, _ = readout.fit_evaluate(
-        train_features,
-        y_data,
-    )
+    readout.fit(train_features, y_train)
+    validation_metrics, *_ = readout.evaluate(validation_features, y_validation)
+    test_metrics, *_ = readout.evaluate(test_features, y_test)
     return {
         "readout": readout,
-        "metrics": metrics,
+        "validation_metrics": validation_metrics,
+        "test_metrics": test_metrics,
     }
 
 if __name__ == "__main__":
