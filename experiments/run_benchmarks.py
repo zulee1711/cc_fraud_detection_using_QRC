@@ -40,7 +40,9 @@ def _score_sweep(protocol, tasks, alpha):
     scores = []
     for task in tasks:
         (_, y_train), (_, y_test) = task.generate()
-        metrics, y_pred = RegressionReadout(alpha=alpha).fit_evaluate(train_outputs, y_train, test_outputs, y_test)
+        readout = RegressionReadout(alpha=alpha)
+        readout.fit(train_outputs, y_train)
+        metrics, y_pred = readout.evaluate(test_outputs, y_test)
         scores.append((metrics, y_test, y_pred))
     return scores
 
@@ -96,8 +98,13 @@ def run_narma_benchmark(window_length=10, length=2000, seed=42, alpha=1e-6, **pr
     protocol = build_protocol(seed=seed, **protocol_kwargs)
     (X_train, y_train), (X_test, y_test) = NARMA10Task(length=length, window_length=window_length, seed=seed).generate()
 
-    metrics, _ = RegressionReadout(alpha=alpha).fit_evaluate(protocol.run(X_train), y_train, protocol.run(X_test), y_test)
-    baseline, _ = RegressionReadout(alpha=alpha).fit_evaluate(X_train[:, :, 0], y_train, X_test[:, :, 0], y_test)
+    readout = RegressionReadout(alpha=alpha)
+    readout.fit(protocol.run(X_train), y_train)
+    metrics, _ = readout.evaluate(protocol.run(X_test), y_test)
+
+    baseline_readout = RegressionReadout(alpha=alpha)
+    baseline_readout.fit(X_train[:, :, 0], y_train)
+    baseline, _ = baseline_readout.evaluate(X_test[:, :, 0], y_test)
     metrics["linear_baseline_nmse"] = baseline["nmse"]
     return metrics
 

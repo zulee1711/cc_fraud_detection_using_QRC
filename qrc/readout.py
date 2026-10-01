@@ -146,7 +146,7 @@ class RegressionReadout:
     """
     Ridge regression readout for continuous targets (for benchmarks such as the memory task).
 
-    Unlike ``ClassicalReadout.fit_evaluate``, the train/test split is left to the
+    The train/test split is left to the
     caller: benchmark windows overlap in time, so the split must be chronological.
     """
     def __init__(self, alpha: float = 1e-6):

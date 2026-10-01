@@ -54,7 +54,9 @@ def test_memory_task_is_solvable_without_a_reservoir():
     L = SMALL["window_length"]
     for delay in range(L):
         (X_train, y_train), (X_test, y_test) = MemoryTask(delay=delay, length=150, window_length=L, seed=42).generate()
-        metrics, _ = RegressionReadout().fit_evaluate(X_train[:, :, 0], y_train, X_test[:, :, 0], y_test)
+        readout = RegressionReadout()
+        readout.fit(X_train[:, :, 0], y_train)
+        metrics, _ = readout.evaluate(X_test[:, :, 0], y_test)
         assert metrics["capacity"] == pytest.approx(1.0)
 
 
