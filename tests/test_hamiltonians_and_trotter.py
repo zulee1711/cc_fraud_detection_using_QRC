@@ -6,6 +6,7 @@ from scipy.linalg import expm
 
 from qrc.hamiltonians import (
     Hamiltonian,
+    HamiltonianTopology,
     native_exchange,
     tfim,
     tfim_longitudinal,
@@ -56,6 +57,16 @@ def test_hamiltonian_builders_create_valid_operators(builder, expected_terms):
     assert len(h.ops.paulis) == expected_terms
     assert h.name
     assert isinstance(h.params, dict)
+
+
+def test_hamiltonian_topology_options():
+    linear = tfim(4, v=1.5, topology="linear")
+    ring = tfim(4, v=1.5, topology=HamiltonianTopology.RING)
+    fully = tfim(4, v=1.5, topology=HamiltonianTopology.FULLY_CONNECTED)
+
+    assert len(linear.ops.paulis) == 7
+    assert len(ring.ops.paulis) == 8
+    assert len(fully.ops.paulis) == 10
 
 
 def test_tfim_specific_structure_and_randomized_params():
