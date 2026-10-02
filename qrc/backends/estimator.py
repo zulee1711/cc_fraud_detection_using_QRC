@@ -16,8 +16,11 @@ class EstimatorBackend(Backend):
     and all windows are submitted as the parameter values of a single PUB.
     """
 
-    def __init__(self):
-        self.estimator = Estimator()
+    def __init__(self, precision=0.05):
+        self.estimator = Estimator(options={
+            "backend_options": {"method": "statevector"},   # later: "noise_model"
+            "default_precision": precision,                       # shot noise; 0.0 = exact
+        })
 
     def _build_circuit(self, encoder: Encoding, reservoir: Reservoir, window_length: int) -> QuantumCircuit:
         """Build the parametrized circuit for a window of ``window_length`` transactions.
