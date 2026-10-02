@@ -1,8 +1,8 @@
 from typing import List, Union
 import itertools
-from qiskit.quantum_info import Pauli
+from qiskit.quantum_info import Pauli, PauliList
 
-def build_observables(specs: Union[str, List[str]], num_qubits: int) -> List[Pauli]:
+def build_observables(specs: Union[str, List[str]], num_qubits: int) -> PauliList:
     """
     Dynamically builds Pauli observables for any combination of 1-body and 2-body bases.
     Supports composite string specifications split by '+' (eg: 'Z+XX', 'Y+XX-all', 'ZZ'):
@@ -13,14 +13,14 @@ def build_observables(specs: Union[str, List[str]], num_qubits: int) -> List[Pau
 
     Input : a specification string from the ones above
 
-    Output : A python list containing K Qiskit Pauli objects, where K is the number of observables geenrated for the specification
+    Output : A Qiskit PauliList containing K Pauli strings, where K is the number of observables geenrated for the specification
 
     Args :
         specs : A string designating the desired observable operator combo
         num_qubits : the total number of qubits
     """
     if isinstance(specs, list):
-        return [Pauli(p) for p in specs]
+        return PauliList(specs)
 
     # def _get_pauli_op(n, idx, label) -> Pauli:
     #     s = ['I'] * n
@@ -99,7 +99,7 @@ def build_observables(specs: Union[str, List[str]], num_qubits: int) -> List[Pau
                             )
         else:
             raise ValueError(f"Unrecognized observable spec token: '{token}'")
-    return observables
+    return PauliList(observables)
 
     # if specs=="Z":
     #     for i in range(num_qubits):

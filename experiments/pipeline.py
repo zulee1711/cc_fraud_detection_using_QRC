@@ -1,5 +1,4 @@
 """End-to-end QRC pipeline."""
-%##
 import pandas as pd
 
 from qrc.encodings import AngleEncoding
@@ -120,5 +119,5 @@ if __name__ == "__main__":
 
 
     print(f"X_train {X_train.shape}, frauds {y_train.sum()}/{len(y_train)}")
-    result = run_random_reservoir_experiment(X_train, y_train, n_input_qubits=6)
-    print(result["metrics"])
+    result = run_random_reservoir_experiment(X_train, y_train, X_validation, y_validation, X_test, y_test, n_input_qubits=6)
+    print(result["test_metrics"])
