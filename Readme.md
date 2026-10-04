@@ -85,24 +85,25 @@ cc_fraud_detection_using_QRC/
 │   ├── pipeline.py         # one end-to-end QRC run
 │   ├── pipeline_estimator.py # end-to-end QRC run with selectable backends
 │   ├── run_benchmarks.py   # QRC on the synthetic benchmarks
-│   └── cli.py              # (to come) launcher
+│   └── cli.py              # experiment runner: data prep → baseline / QRC → saved results
 ├── tests/                  # pytest suite
 ├── examples/               # spin-pulse usage examples
 ├── notebook/               # scratch notebooks
 ├── thelab/                 # reference implementation (git submodule)
 ├── raw_data/               # source datasets (git-ignored)
-└── data/                   # daily train/validation/test splits (git-ignored)
-    ├── train/
-    ├── validation/
-    └── test/
+└── data/                   # train/validation/test splits (git-ignored)
+    ├── transactions_train.pkl
+    ├── transactions_validation.pkl
+    └── transactions_test.pkl
 ```
 
 ### Where the dataset goes
 
 `qrc/datasets/` is code. The dataset *files* live in `data/`, which is git-ignored.
 
-`data/` should contain the daily `.pkl` splits under `train/`, `validation/` and `test/`, produced by `split_dataset.py` and read by `experiments/run_data.py`.
-They can be found on [the Sharepoint](https://tud365.sharepoint.com/sites/stud-JIPQuobly/Gedeelde%20documenten/Forms/AllItems.aspx?d=w85e103b01b5d4ec189c07807a959dabf&csf=1&web=1&e=Gnh3Ry&CID=b41e9a08%2D4ee4%2D4a04%2D8b29%2Dd93caea790eb&FolderCTID=0x0120005EE06ABC7353574FA007EB3176FE5935&id=%2Fsites%2Fstud%2DJIPQuobly%2FGedeelde%20documenten%2FDatasets%2Fsimulated%5Fdataset).
+`data/` should contain `transactions_train.pkl`, `transactions_validation.pkl` and `transactions_test.pkl`, produced by `split_dataset.py` and read by `experiments/cli.py --data load`.
+(`split_dataset.py` also writes daily files under `train/`, `validation/` and `test/`; `experiments/run_data.py` reads those.)
+The three split files can be found on [the Sharepoint](https://tud365.sharepoint.com/sites/stud-JIPQuobly/Gedeelde%20documenten/Forms/AllItems.aspx?d=w85e103b01b5d4ec189c07807a959dabf&csf=1&web=1&e=Gnh3Ry&CID=b41e9a08%2D4ee4%2D4a04%2D8b29%2Dd93caea790eb&FolderCTID=0x0120005EE06ABC7353574FA007EB3176FE5935&id=%2Fsites%2Fstud%2DJIPQuobly%2FGedeelde%20documenten%2FDatasets%2Fsimulated%5Fdataset).
 
 ### Importing project code
 
@@ -113,6 +114,31 @@ longer need to run Python from the repository root or set `PYTHONPATH`:
 from qrc.encodings import AngleEncoding
 from qrc.hamiltonians import build_disordered_tfim
 ```
+
+## Run experiments with the CLI
+`experiments/cli.py` runs every experiment from one shared data preparation
+(data → feature engineering → `DataProcessor` → customer windowing), fits the
+logistic readout on train and reports PR-AUC, ROC-AUC, F1, precision and recall
+on validation and test.
+
+```bash
+python -m experiments.cli prepare  --size small                 # data preparation only
+python -m experiments.cli baseline --size medium                # logistic readout on the raw windows
+python -m experiments.cli qrc      --size medium --backend estimator-exact
+python -m experiments.cli qrc --help                            # all reservoir / backend options
+```
+
+**Data source.** By default the data is simulated on the fly (`--data simulate`)
+from a `--size` preset (`small`, `medium`, `large`: 10, 50, 100 customers over 365 days)
+and a `--data-seed`. To use the shared dataset, download the three files
+`transactions_{train,validation,test}.pkl` from SharePoint into `data/` and pass
+`--data load` (optionally `--data-dir`, and `--start-date`/`--end-date` to restrict the period).
+A simulated dataset can be written in the same layout with `--save-data DIR` and
+reloaded with `--data load --data-dir DIR`, which gives identical results.
+
+**Results.** Each `baseline`/`qrc` run writes `config.json`, `metrics.json` and
+`scores.npz` to `results/runs/<timestamp>_<command>/`, and appends one line to
+`results/runs/summary.csv` for side-by-side comparison.
 
 ## Run experiments:
 You can run the Jupyter Notebook or the Python script to see the basic usage of the application.

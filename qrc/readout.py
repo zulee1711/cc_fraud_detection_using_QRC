@@ -19,7 +19,7 @@ for validation and test data.
 
 import numpy as np
 from sklearn.linear_model import LogisticRegression, Ridge
-from sklearn.metrics import f1_score, precision_score, recall_score, roc_auc_score
+from sklearn.metrics import average_precision_score, f1_score, precision_score, recall_score, roc_auc_score
 from typing import Dict, Tuple
 from sklearn.preprocessing import StandardScaler
 
@@ -103,7 +103,7 @@ class ClassicalReadout:
 
         Returns:
             A tuple containing:
-            metrics: Dictionary containing F1 score, precision, recall, ROC-AUC and the decision threshold used.
+            metrics: Dictionary containing F1 score, precision, recall, ROC-AUC, PR-AUC and the decision threshold used.
             y_labels: The true labels
             y_pred: Binary predictions obtained using decision_threshold
             scores: Predicted probability of fraud for each sequence
@@ -133,6 +133,10 @@ class ClassicalReadout:
                 zero_division=0,
             ),
             "roc_auc": roc_auc_score(
+                y_labels,
+                scores,
+            ),
+            "pr_auc": average_precision_score(
                 y_labels,
                 scores,
             ),
