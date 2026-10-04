@@ -16,6 +16,7 @@ requires-python = ">=3.11"
 dependencies = [
     # quantum core
     "qiskit",
+    "qiskit-aer",
     "spin-pulse",
     # numerics / data
     "numpy",
