@@ -16,21 +16,26 @@ from qrc.sequences import window_by_customer_id
 
 
 def run_random_reservoir_experiment(
-        X_train,
-        y_train,
-        X_validation,
-        y_validation,
-        X_test,
-        y_test,
-        n_input_qubits = 4,
-        n_mem_qubits = 2,
-        depth = 2,
-        observables_spec = "Z",
-        seed = 42,
-        alpha = 1.0
+    X_train,
+    y_train,
+    X_validation,
+    y_validation,
+    X_test,
+    y_test,
+    n_input_qubits=4,
+    n_mem_qubits=2,
+    depth=2,
+    observables_spec="Z",
+    seed=42,
+    alpha=1.0,
 ):
     encoder = AngleEncoding(num_qubits=n_input_qubits)
-    reservoir = RandomCircuitReservoir(num_input_qubits=n_input_qubits, num_mem_qubits=n_mem_qubits, depth=depth, rng=seed)
+    reservoir = RandomCircuitReservoir(
+        num_input_qubits=n_input_qubits,
+        num_mem_qubits=n_mem_qubits,
+        depth=depth,
+        rng=seed,
+    )
     backend = StatevectorBackend()
     observables = build_observables(observables_spec, reservoir.num_qubits)
 
@@ -50,6 +55,7 @@ def run_random_reservoir_experiment(
         "test_metrics": test_metrics,
     }
 
+
 if __name__ == "__main__":
     SIMULATION = dict(
         n_customers=10,
@@ -62,35 +68,35 @@ if __name__ == "__main__":
 
     customer_profiles, terminal_profiles, transactions = generate_dataset(**SIMULATION)
     transactions = add_frauds(customer_profiles, terminal_profiles, transactions)
-    train, validation, test = split_dataset(transactions, train_ratio=0.70, validation_ratio=0.15)
+    train, validation, test = split_dataset(
+        transactions, train_ratio=0.70, validation_ratio=0.15
+    )
 
     full_data = pd.concat([train, validation, test], ignore_index=True)
-    full_data.drop(columns=['TX_FRAUD_SCENARIO'], inplace=True)
+    full_data.drop(columns=["TX_FRAUD_SCENARIO"], inplace=True)
 
     feature_engineer = FeatureEngineer(
         windows=(1, 7, 30, 90, 180),
         save=False,
     )
 
-    train_features, validation_features, test_features = (
-        feature_engineer.run(
-            full_data,
-            train,
-            validation,
-            test,
-        )
+    train_features, validation_features, test_features = feature_engineer.run(
+        full_data,
+        train,
+        validation,
+        test,
     )
 
     manual_feature_sets = {
         6: [
-            'TERMINAL_RISK_7D',
-            'TERMINAL_RISK_CHANGE_7D_30D',
-            'TERMINAL_RISK_CHANGE_7D_180D',
-            'CUSTOMER_AMOUNT_RATIO_180D',
+            "TERMINAL_RISK_7D",
+            "TERMINAL_RISK_CHANGE_7D_30D",
+            "TERMINAL_RISK_CHANGE_7D_180D",
+            "CUSTOMER_AMOUNT_RATIO_180D",
             # 'TERMINAL_RISK_CHANGE_7D_90D',
             # 'TERMINAL_RISK_30D',
-            'CUSTOMER_AMOUNT_RATIO_90D',
-            'CUSTOMER_AMOUNT_DEVIATION_30D',
+            "CUSTOMER_AMOUNT_RATIO_90D",
+            "CUSTOMER_AMOUNT_DEVIATION_30D",
             # 'CUSTOMER_AMOUNT_MULTIPLIER_30D',
             # 'CUSTOMER_AMOUNT_RATIO_30D',
         ],
@@ -109,15 +115,16 @@ if __name__ == "__main__":
 
     L = 3
     windowed_input_data = window_by_customer_id(input_data, L)
-    X_train = windowed_input_data['X_train']
-    X_validation = windowed_input_data['X_validation']
-    X_test = windowed_input_data['X_test']
-    y_train = windowed_input_data['y_train']
-    y_validation = windowed_input_data['y_validation']
-    y_test = windowed_input_data['y_test']
-    input_features = windowed_input_data['features']
-
+    X_train = windowed_input_data["X_train"]
+    X_validation = windowed_input_data["X_validation"]
+    X_test = windowed_input_data["X_test"]
+    y_train = windowed_input_data["y_train"]
+    y_validation = windowed_input_data["y_validation"]
+    y_test = windowed_input_data["y_test"]
+    input_features = windowed_input_data["features"]
 
     print(f"X_train {X_train.shape}, frauds {y_train.sum()}/{len(y_train)}")
-    result = run_random_reservoir_experiment(X_train, y_train, X_validation, y_validation, X_test, y_test, n_input_qubits=6)
+    result = run_random_reservoir_experiment(
+        X_train, y_train, X_validation, y_validation, X_test, y_test, n_input_qubits=6
+    )
     print(result["test_metrics"])
