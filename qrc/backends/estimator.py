@@ -1,26 +1,73 @@
+from typing import Optional
+
 import numpy as np
-from qiskit import QuantumCircuit
+from qiskit import QuantumCircuit, transpile
 from qiskit.circuit import ParameterVector
+from qiskit.primitives import BackendEstimatorV2
 from qiskit.quantum_info import PauliList
-from qiskit_aer.primitives import EstimatorV2 as Estimator
+from qiskit_aer import AerSimulator
+from qiskit_aer.noise import NoiseModel
+from qiskit_aer.primitives import EstimatorV2 as AerEstimator
 
 from qrc.backends.base import Backend
 from qrc.encodings import Encoding
 from qrc.reservoirs import Reservoir
 
+SAMPLING_MODES = ("gaussian", "shots")
+
 
 class EstimatorBackend(Backend):
-    """Uses the Estimator primitive from Qiskit Aer.
+    """Runs the QRC circuits through a Qiskit Estimator primitive.
 
     The circuit is built once, with the window's features as a ``ParameterVector``,
     and all windows are submitted as the parameter values of a single PUB.
+
+    Args:
+        precision (float): target standard error of every estimated expectation value.
+            For Pauli observables, ``precision ~ 1 / sqrt(shots)``. ``0.0`` means exact
+            (only allowed with ``sampling="gaussian"``).
+        noise_model (NoiseModel, optional): Aer noise model applied to the simulation.
+        seed (int, optional): seed, for reproducible results.
+        sampling (str): how ``precision`` is realised.
+
+            * ``"gaussian"``: Aer's ``EstimatorV2``. Computes the exact expectation values
+              of the (noisy) circuit and adds Gaussian noise of width ``precision``.
+              Fast, but no measurement is actually sampled.
+            * ``"shots"``: Qiskit's ``BackendEstimatorV2`` on ``AerSimulator``. Appends
+              the measurement bases, samples ``~1/precision**2`` shots per circuit and
+              averages the counts, as on hardware. Slower, but a genuine shot simulation.
     """
 
-    def __init__(self, precision=0.05):
-        self.estimator = Estimator(options={
-            "backend_options": {"method": "statevector"},   # later: "noise_model"
-            "default_precision": precision,                       # shot noise; 0.0 = exact
-        })
+    def __init__(self, precision: float = 0.0, noise_model: Optional[NoiseModel] = None,
+                 seed: Optional[int] = None, sampling: str = "gaussian"):
+        if sampling not in SAMPLING_MODES:
+            raise ValueError(f"sampling must be one of {SAMPLING_MODES}, got {sampling!r}")
+        if precision < 0:
+            raise ValueError("precision must be non-negative")
+        if sampling == "shots" and precision == 0:
+            raise ValueError("sampling='shots' needs precision > 0 (number of shots ~ 1 / precision**2)")
+        self.precision = precision
+        self.noise_model = noise_model
+        self.seed = seed
+        self.sampling = sampling
+
+        backend_options = {}
+        if noise_model is not None:
+            backend_options["noise_model"] = noise_model
+        if sampling == "gaussian":
+            self._backend = None
+            run_options = {} if seed is None else {"seed_simulator": seed}
+            self.estimator = AerEstimator(options={
+                "default_precision": precision,
+                "backend_options": backend_options,
+                "run_options": run_options,
+            })
+        else:
+            if seed is not None:
+                backend_options["seed_simulator"] = seed
+            self._backend = AerSimulator(**backend_options)
+            self.estimator = BackendEstimatorV2(backend=self._backend,
+                                                options={"default_precision": precision})
 
     def _build_circuit(self, encoder: Encoding, reservoir: Reservoir, window_length: int) -> QuantumCircuit:
         """Build the parametrized circuit for a window of ``window_length`` transactions.
@@ -45,10 +92,12 @@ class EstimatorBackend(Backend):
         samples, window_length, num_features = windows.shape
         n_in = reservoir.num_input_qubits
         circuit = self._build_circuit(encoder, reservoir, window_length)
+        if self._backend is not None:
+            circuit = transpile(circuit, self._backend, optimization_level=0)
 
         # tile/truncate the features onto the input qubits
         resized = windows[..., np.arange(n_in) % num_features]
-
+        # (samples, 1, parameters): the singleton axis broadcasts against the observables
         parameter_values = resized.astype(float).reshape(samples, 1, window_length * n_in)
 
         job = self.estimator.run([(circuit, observables, parameter_values)])
