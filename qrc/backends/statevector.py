@@ -4,8 +4,13 @@ import numpy as np
 from qiskit import QuantumCircuit
 from qiskit.quantum_info import Statevector
 
+from qrc.backends.base import Backend
+from qiskit.quantum_info import PauliList
+from qrc.encodings import Encoding
+from qrc.reservoirs import Reservoir
 
-class StatevectorBackend:
+
+class StatevectorBackend(Backend):
     """Execute one independent temporal window at a time using exact states."""
 
     def _measure(self, state: Statevector, observables) -> np.ndarray:
@@ -14,7 +19,7 @@ class StatevectorBackend:
             dtype=float,
         )
 
-    def run_window(self, window: np.ndarray, encoder, reservoir, observables) -> np.ndarray:
+    def _run_window(self, window: np.ndarray, encoder, reservoir, observables) -> np.ndarray:
         """Run the full circuit for the given window.
         Observables are measured only once, after the loop.
         Returns np array with shape ``(observables,)``."""
@@ -35,8 +40,5 @@ class StatevectorBackend:
         measurements = self._measure(state, observables)
         return measurements
 
-    def run_batch(self, windows: np.ndarray, encoder, reservoir, observables) -> np.ndarray:
-        """Return reservoir trajectories with shape ``(samples, observables)``."""
-        if windows.ndim != 3:
-            raise ValueError("windows must have shape (samples, window_length, features)")
-        return np.asarray([self.run_window(window, encoder, reservoir, observables) for window in windows])
+    def run_batch(self, windows: np.ndarray, encoder: Encoding, reservoir: Reservoir, observables: PauliList) -> np.ndarray:
+        return np.asarray([self._run_window(window, encoder, reservoir, observables) for window in windows])

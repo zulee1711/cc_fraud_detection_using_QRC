@@ -1,6 +1,4 @@
 """End-to-end QRC pipeline."""
-
-##
 import pandas as pd
 
 from qrc.encodings import AngleEncoding

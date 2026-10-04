@@ -75,14 +75,18 @@ cc_fraud_detection_using_QRC/
 │   ├── logger.py
 │   └── backends/           # execution backends
 │       ├── base.py
-│       ├── sampled.py
-│       ├── spinpulse.py
-│       └── statevector.py
+│       ├── statevector.py  # exact statevector simulation
+│       ├── estimator.py    # Qiskit Aer Estimator (shot noise, noise models)
+│       ├── densitymatrix.py # (to come) density-matrix simulation
+│       └── spinpulse.py
 ├── experiments/            # experiment wiring — scripts, not a package
 │   ├── run_data.py         # data → features → analysis → model input
+│   ├── dataset_analysis.py # exploration / feature analysis of a simulated dataset
 │   ├── pipeline.py         # one end-to-end QRC run
+│   ├── pipeline_estimator.py # end-to-end QRC run with selectable backends
 │   ├── run_benchmarks.py   # QRC on the synthetic benchmarks
 │   └── cli.py              # (to come) launcher
+├── tests/                  # pytest suite
 ├── examples/               # spin-pulse usage examples
 ├── notebook/               # scratch notebooks
 ├── thelab/                 # reference implementation (git submodule)

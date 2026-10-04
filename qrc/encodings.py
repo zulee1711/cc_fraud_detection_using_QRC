@@ -2,8 +2,13 @@ import math
 import numpy as np
 from qiskit import QuantumCircuit
 
+class Encoding:
 
-class AngleEncoding:
+    def __init__(self, num_qubits: int):
+        self.num_qubits = num_qubits
+
+
+class AngleEncoding(Encoding):
 
     def __init__(self, num_qubits, axis="y", scaling=np.pi):
         """
@@ -16,8 +21,8 @@ class AngleEncoding:
                 different range, adjust this scaling factor accordingly.
         """
 
+        super().__init__(num_qubits)
         self.axis = axis
-        self.num_qubits = num_qubits
         self.scaling = scaling
 
     def set_scaling_based_on_input_range(self, min_value, max_value):
