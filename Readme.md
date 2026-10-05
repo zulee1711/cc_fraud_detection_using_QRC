@@ -136,6 +136,10 @@ and a `--data-seed`. To use the shared dataset, download the three files
 A simulated dataset can be written in the same layout with `--save-data DIR` and
 reloaded with `--data load --data-dir DIR`, which gives identical results.
 
+**Features.** `--feature-set 7|10|15` (default 7) picks the features chosen by the
+feature analysis; each set extends the previous one (see `FEATURE_SETS` in `experiments/cli.py`).
+For `qrc`, the number of input qubits defaults to the number of features.
+
 **Results.** Each `baseline`/`qrc` run writes `config.json`, `metrics.json` and
 `scores.npz` to `results/runs/<timestamp>_<command>/`, and appends one line to
 `results/runs/summary.csv` for side-by-side comparison.

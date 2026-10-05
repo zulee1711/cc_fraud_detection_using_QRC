@@ -57,14 +57,29 @@ logger = get_logger(__name__)
 
 PROJECT_ROOT = Path(qrc.__file__).resolve().parents[1]
 
-FEATURE_SET = [
-    'TERMINAL_RISK_7D',
-    'TERMINAL_RISK_CHANGE_7D_30D',
-    'TERMINAL_RISK_CHANGE_7D_180D',
-    'CUSTOMER_AMOUNT_RATIO_180D',
-    'CUSTOMER_AMOUNT_RATIO_90D',
-    'CUSTOMER_AMOUNT_DEVIATION_30D',
+# Feature sets from the feature analysis (on train only). Each set extends the previous one.
+_SET_7 = [
+    "TERMINAL_RISK_7D",
+    "TERMINAL_RISK_CHANGE_7D_30D",
+    "TERMINAL_RISK_CHANGE_7D_90D",
+    "CUSTOMER_AMOUNT_RATIO_90D",
+    "CUSTOMER_AMOUNT_DEVIATION_30D",
+    "TX_AMOUNT_LOG",
+    "TX_DURING_NIGHT",
 ]
+_SET_10 = _SET_7 + [
+    "TERMINAL_RISK_30D",
+    "TERMINAL_RISK_CHANGE_1D_90D",
+    "CUSTOMER_NB_TX_30D",
+]
+_SET_15 = _SET_10 + [
+    "TERMINAL_RISK_1D",
+    "CUSTOMER_AMOUNT_SHIFT_7D_30D",
+    "CUSTOMER_ACTIVITY_AMOUNT_30D",
+    "CUSTOMER_TIME_GAP_SECONDS",
+    "TX_DURING_WEEKEND",
+]
+FEATURE_SETS = {7: _SET_7, 10: _SET_10, 15: _SET_15}
 FEATURE_WINDOWS = (1, 7, 30, 90, 180)
 TRAIN_RATIO, VALIDATION_RATIO = 0.70, 0.15
 
@@ -79,7 +94,7 @@ SIMULATION = dict(nb_days=365, start_date="2025-01-01", r=5)
 BACKEND_NAMES = ("statevector", "estimator-exact", "gaussian", "shots")
 METRIC_NAMES = ("pr_auc", "roc_auc", "f1_score", "precision", "recall")
 SUMMARY_FIELDS = (
-    "run", "command", "data", "size", "data_seed", "data_dir", "window_length", "alpha", "backend",
+    "run", "command", "data", "size", "data_seed", "data_dir", "feature_set", "window_length", "alpha", "backend",
     "validation_pr_auc", "validation_f1_score", "test_pr_auc", "test_f1_score",
 )
 
@@ -119,8 +134,8 @@ def prepare_data(args):
     feature_engineer = FeatureEngineer(windows=FEATURE_WINDOWS, save=False)
     train_features, validation_features, test_features = feature_engineer.run(full_data, train, validation, test)
 
-    processor = DataProcessor(feature_sets={"default": FEATURE_SET})
-    input_data = processor.process(train_features, validation_features, test_features, feature_set="default")
+    processor = DataProcessor(feature_sets=FEATURE_SETS)
+    input_data = processor.process(train_features, validation_features, test_features, feature_set=args.feature_set)
 
     data = window_by_customer_id(input_data, args.window_length)
     data["summary"] = {
@@ -153,7 +168,7 @@ def baseline_features(data):
 
 def qrc_features(data, args):
     """Run the reservoir once over each split."""
-    n_input_qubits = args.n_input_qubits or len(FEATURE_SET)
+    n_input_qubits = args.n_input_qubits or len(FEATURE_SETS[args.feature_set])
     encoder = AngleEncoding(num_qubits=n_input_qubits)
     reservoir = RandomCircuitReservoir(num_input_qubits=n_input_qubits, num_mem_qubits=args.n_mem_qubits,
                                        depth=args.depth, entangler=args.entangler, rng=args.seed)
@@ -200,7 +215,7 @@ def save_run(args, data, metrics, scores, extra):
     config = {
         "args": {k: (str(v) if isinstance(v, Path) else v) for k, v in vars(args).items()},
         "data_source": data_source(args),
-        "features": FEATURE_SET,
+        "features": FEATURE_SETS[args.feature_set],
         "splits": data["summary"],
     }
     (run_dir / "config.json").write_text(json.dumps(config, indent=2))
@@ -213,6 +228,7 @@ def save_run(args, data, metrics, scores, extra):
         "run": run_dir.name,
         "command": args.command,
         **{k: v for k, v in data_source(args).items() if k in ("data", "size", "data_seed", "data_dir")},
+        "feature_set": args.feature_set,
         "window_length": args.window_length,
         "alpha": args.alpha,
         "backend": getattr(args, "backend", ""),
@@ -249,6 +265,8 @@ def build_parser():
                       help="directory holding transactions_{train,validation,test}.pkl")
     data.add_argument("--start-date", default=None, help="first day to load, YYYY-MM-DD (--data load)")
     data.add_argument("--end-date", default=None, help="last day to load, YYYY-MM-DD (--data load)")
+    data.add_argument("--feature-set", type=int, choices=tuple(FEATURE_SETS), default=7,
+                      help="selected features: 7, 10 or 15 (each extends the previous)")
     data.add_argument("--window-length", type=int, default=3, help="transactions per customer window")
 
     run = argparse.ArgumentParser(add_help=False)
@@ -265,7 +283,7 @@ def build_parser():
     qrc_parser.add_argument("--precision", type=float, default=0.05,
                             help="target std. error of each expectation value (gaussian/shots; shots ~ 1/precision**2)")
     qrc_parser.add_argument("--n-input-qubits", type=int, default=None,
-                            help=f"defaults to the number of features ({len(FEATURE_SET)})")
+                            help="defaults to the number of features in --feature-set")
     qrc_parser.add_argument("--n-mem-qubits", type=int, default=2)
     qrc_parser.add_argument("--depth", type=int, default=2)
     qrc_parser.add_argument("--entangler", choices=("cx", "cry"), default="cx")
