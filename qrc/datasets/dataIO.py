@@ -84,35 +84,8 @@ def loading(
     return data
 
 #%%
-def load_daily_files(
-        input_dir:str | Path,
-        start_date:Optional[str] = None,
-        end_date:Optional[str] = None,
-):
-    input_dir = Path(input_dir)
-
-    files = sorted(input_dir.glob("*.pkl"))
-
-    if not files:
-        raise FileNotFoundError(f"No .pkl files found in {input_dir}.")
-
-    start_date = str(start_date) if start_date else files[0].stem
-    end_date = str(end_date) if end_date else files[-1].stem
-
-    logger.info(f"Loading files from {start_date} to {end_date}")
-    files = [f for f in files if str(start_date) <= f.stem <= str(end_date)]
-
-    if not files:
-        raise FileNotFoundError(
-            f"No .pkl files found in {input_dir} "
-            f"between {start_date} and {end_date}."
-        )
-
-    df = pd.concat(
-        [loading(f) for f in files],
-        ignore_index=True,
-    )
-
+def _tidy_transactions(df):
+    """Coerce numeric columns, parse TX_DATETIME and sort chronologically."""
     NUMERIC_COLUMNS = [
         'TRANSACTION_ID',
         'TX_AMOUNT',
@@ -142,12 +115,77 @@ def load_daily_files(
     return df_final
 
 #%%
+def load_daily_files(
+        input_dir:str | Path,
+        start_date:Optional[str] = None,
+        end_date:Optional[str] = None,
+):
+    input_dir = Path(input_dir)
+
+    files = sorted(input_dir.glob("*.pkl"))
+
+    if not files:
+        raise FileNotFoundError(f"No .pkl files found in {input_dir}.")
+
+    start_date = str(start_date) if start_date else files[0].stem
+    end_date = str(end_date) if end_date else files[-1].stem
+
+    logger.info(f"Loading files from {start_date} to {end_date}")
+    files = [f for f in files if str(start_date) <= f.stem <= str(end_date)]
+
+    if not files:
+        raise FileNotFoundError(
+            f"No .pkl files found in {input_dir} "
+            f"between {start_date} and {end_date}."
+        )
+
+    df = pd.concat(
+        [loading(f) for f in files],
+        ignore_index=True,
+    )
+
+    return _tidy_transactions(df)
+
+#%%
 def load_splits(data_root):
     root = Path(data_root)
     return {
         s: load_daily_files(root / s)
         for s in ('train', 'validation', 'test')
     }
+
+#%%
+def load_split_files(
+        data_root: str | Path,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+):
+    """Load ``transactions_{train,validation,test}.pkl`` from `data_root`.
+
+    This is the layout of the shared dataset on SharePoint, also written by
+    ``split_dataset.main(output_dir=...)``. `start_date` and `end_date`
+    (``YYYY-MM-DD``, inclusive) optionally restrict every split to a period.
+
+    Returns:
+        dict mapping ``'train'``, ``'validation'`` and ``'test'`` to DataFrames.
+    """
+    root = Path(data_root)
+    splits = {}
+    for s in ('train', 'validation', 'test'):
+        path = root / f"transactions_{s}.pkl"
+        if not path.exists():
+            raise FileNotFoundError(f"{path} not found.")
+
+        df = _tidy_transactions(loading(path))
+        day = df['TX_DATETIME'].dt.normalize()
+        keep = pd.Series(True, index=df.index)
+        if start_date:
+            keep &= day >= pd.Timestamp(start_date)
+        if end_date:
+            keep &= day <= pd.Timestamp(end_date)
+        splits[s] = df[keep].reset_index(drop=True)
+
+    return splits
 
 #%%
 def dumping(
