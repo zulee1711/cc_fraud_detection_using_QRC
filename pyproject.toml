@@ -35,6 +35,9 @@ dependencies = [
     "pytest",
 ]
 
+[project.optional-dependencies]
+classical = ["torch"]
+
 [tool.setuptools.packages.find]
 include = ["qrc*"]  # experiments/ is scripts, deliberately not packaged
 

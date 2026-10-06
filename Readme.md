@@ -41,6 +41,11 @@ pip install -e .
 This installs the `qrc` package in editable mode (your edits to `qrc/` take
 effect immediately, no reinstall needed) along with its dependencies.
 
+To run the optional LSTM baseline, install PyTorch as well:
+```bash
+pip install -e ".[classical]"
+```
+
 ## Project structure
 
 ```
@@ -65,6 +70,7 @@ cc_fraud_detection_using_QRC/
 │   │   └── windows.py
 │   ├── processing.py       # final model input: selection, imputation, scaling
 │   ├── sequences.py        # (to come) 2D features → (M, L, N) windows
+│   ├── baselines/          # classical baseline architectures (including LSTM)
 │   ├── encodings.py        # input encodings (AngleEncoding, ...)
 │   ├── hamiltonians.py     # reservoir Hamiltonians
 │   ├── trotter.py          # Trotterised time evolution
@@ -77,13 +83,14 @@ cc_fraud_detection_using_QRC/
 │       ├── base.py
 │       ├── statevector.py  # exact statevector simulation
 │       ├── estimator.py    # Qiskit Aer Estimator (shot noise, noise models)
-│       ├── densitymatrix.py # (to come) density-matrix simulation
+│       ├── densitymatrix.py # (TBI) density-matrix simulation
 │       └── spinpulse.py
 ├── experiments/            # experiment wiring — scripts, not a package
 │   ├── run_data.py         # data → features → analysis → model input
 │   ├── dataset_analysis.py # exploration / feature analysis of a simulated dataset
 │   ├── pipeline.py         # one end-to-end QRC run
 │   ├── pipeline_estimator.py # end-to-end QRC run with selectable backends
+│   ├── lstm_baseline.py    # trains and evaluates the classical LSTM baseline
 │   ├── run_benchmarks.py   # QRC on the synthetic benchmarks
 │   └── cli.py              # experiment runner: data prep → baseline / QRC → saved results
 ├── tests/                  # pytest suite
@@ -191,6 +198,7 @@ Then run:
 ```bash
 python experiments/pipeline.py
 ```
+
 The pipeline will:
 ```
 Generate dataset
