@@ -241,8 +241,6 @@ cc_fraud_detection_using_QRC/
 │   └── cli.py               # ← the experiment runner
 ├── docs/                    # data pipeline and feature catalog
 ├── tests/                   # pytest suite
-├── examples/                # spin-pulse usage examples
-├── notebook/                # scratch notebooks
 ├── thelab/                  # reference QRC implementation (git submodule)
 ├── data/                    # train/validation/test splits (git-ignored)
 ├── raw_data/                # unsplit simulator output (git-ignored)
