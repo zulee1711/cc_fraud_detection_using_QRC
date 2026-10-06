@@ -37,3 +37,19 @@ def test_saved_simulation_reloads_identically(tmp_path):
     assert splits(loaded) == splits(simulated)
     for split in ("validation", "test"):
         assert _metrics(loaded)[split] == pytest.approx(_metrics(simulated)[split])
+
+
+def test_summary_records_reservoir_and_metrics(tmp_path):
+    """A qrc row in summary.csv carries the resolved reservoir settings and every metric."""
+    run_dir = main(["qrc", "--size", "small", "--n-mem-qubits", "1", "--observables", "XYZ",
+                    "--output-dir", str(tmp_path)])
+
+    with open(tmp_path / "summary.csv", newline="") as f:
+        (row,) = csv.DictReader(f)
+    assert row["run"] == run_dir.name
+    assert (row["n_input_qubits"], row["n_mem_qubits"], row["n_qubits"]) == ("7", "1", "8")
+    assert (row["observables"], row["n_observables"], row["seed"]) == ("XYZ", "24", "42")
+    assert row["backend_precision"] == ""  # unused by the exact backend
+    for split in ("validation", "test"):
+        for metric in ("pr_auc", "roc_auc", "f1_score", "precision", "recall"):
+            assert row[f"{split}_{metric}"] != ""

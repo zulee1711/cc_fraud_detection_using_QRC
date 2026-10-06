@@ -36,6 +36,8 @@ def setup_logging(level: Optional[str] = None) -> None:
     file_handler.setFormatter(formatter)
     root.addHandler(file_handler)
 
+    logging.getLogger("qiskit").setLevel(logging.WARNING)
+
     _LOGGER_CONFIGURED = True
 
 

@@ -133,7 +133,16 @@ Each `baseline` and `qrc` run creates a directory `results/runs/<timestamp>_<com
 - `scores.npz`: labels and predicted scores per split, for plotting PR/ROC curves later
 
 Each run also appends one row to **`results/runs/summary.csv`**, so you can compare runs side
-by side. `results/` is git-ignored.
+by side. A row records:
+
+- the run: its name, the git commit (with `-dirty` if there were uncommitted changes) and the command;
+- the data: its source, feature set, window length, and the size and fraud count of each split;
+- for `qrc`, the reservoir: backend, precision, qubit counts, depth, entangler, observables and seed,
+  plus the reservoir runtime;
+- the readout: `alpha`, the decision threshold, and every metric (PR-AUC, ROC-AUC, F1, precision,
+  recall) on validation and test.
+
+`results/` is git-ignored.
 
 ### Reproducibility
 

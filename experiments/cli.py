@@ -30,6 +30,7 @@ Examples:
 import argparse
 import csv
 import json
+import subprocess
 import time
 from datetime import datetime
 from pathlib import Path
@@ -93,9 +94,18 @@ SIMULATION = dict(nb_days=365, start_date="2025-01-01", r=5)
 
 BACKEND_NAMES = ("statevector", "estimator-exact", "gaussian", "shots")
 METRIC_NAMES = ("pr_auc", "roc_auc", "f1_score", "precision", "recall")
+EVAL_SPLITS = ("validation", "test")
 SUMMARY_FIELDS = (
-    "run", "command", "data", "size", "data_seed", "data_dir", "feature_set", "window_length", "alpha", "backend",
-    "validation_pr_auc", "validation_f1_score", "test_pr_auc", "test_f1_score",
+    # run and data
+    "run", "commit", "command", "data", "size", "data_seed", "data_dir", "start_date", "end_date",
+    "feature_set", "n_features", "window_length",
+    *(f"{split}_{k}" for split in SPLITS for k in ("samples", "frauds")),
+    # reservoir (qrc only)
+    "backend", "backend_precision", "n_input_qubits", "n_mem_qubits", "n_qubits", "depth", "entangler",
+    "observables", "n_observables", "seed", "reservoir_seconds",
+    # readout and metrics
+    "alpha", "threshold",
+    *(f"{split}_{m}" for split in EVAL_SPLITS for m in METRIC_NAMES),
 )
 
 
@@ -167,7 +177,12 @@ def baseline_features(data):
 
 
 def qrc_features(data, args):
-    """Run the reservoir once over each split."""
+    """Run the reservoir once over each split.
+
+    Returns:
+        tuple: the reservoir outputs per split, and the resolved reservoir settings
+        (qubit counts after defaults, number of observables) for the run record.
+    """
     n_input_qubits = args.n_input_qubits or len(FEATURE_SETS[args.feature_set])
     encoder = AngleEncoding(num_qubits=n_input_qubits)
     reservoir = RandomCircuitReservoir(num_input_qubits=n_input_qubits, num_mem_qubits=args.n_mem_qubits,
@@ -180,7 +195,9 @@ def qrc_features(data, args):
     for split in SPLITS:
         print(f"running {args.backend} on {split} ...", flush=True)
         features[split] = protocol.run(data[f"X_{split}"])
-    return features
+    reservoir_info = {"n_input_qubits": n_input_qubits, "n_qubits": reservoir.num_qubits,
+                      "n_observables": len(observables)}
+    return features, reservoir_info
 
 
 def fit_and_evaluate(features, data, alpha):
@@ -206,16 +223,71 @@ def data_source(args):
             **SIZES[args.size], **SIMULATION}
 
 
-def save_run(args, data, metrics, scores, extra):
+def git_commit():
+    """Short hash of the checked-out commit, with ``-dirty`` if there are uncommitted changes; ``""`` outside git."""
+    try:
+        commit = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=PROJECT_ROOT,
+                                capture_output=True, text=True, check=True).stdout.strip()
+        dirty = subprocess.run(["git", "status", "--porcelain", "--untracked-files=no"], cwd=PROJECT_ROOT,
+                               capture_output=True, text=True, check=True).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        return ""
+    return f"{commit}-dirty" if dirty else commit
+
+
+def summary_row(args, data, metrics, reservoir_info, extra, run_name):
+    """One summary.csv row: everything needed to identify, reproduce and compare the run."""
+    row = {
+        "run": run_name,
+        "commit": git_commit(),
+        "command": args.command,
+        # start/end date only when loading: for a simulation, start_date is the simulator's, not a filter
+        **{k: v for k, v in data_source(args).items()
+           if k in (("data", "data_dir", "start_date", "end_date") if args.data == "load"
+                    else ("data", "size", "data_seed"))},
+        "feature_set": args.feature_set,
+        "n_features": len(FEATURE_SETS[args.feature_set]),
+        "window_length": args.window_length,
+        **{f"{split}_{k}": data["summary"][split][k] for split in SPLITS for k in ("samples", "frauds")},
+        "alpha": args.alpha,
+        "threshold": metrics["test"]["threshold_used"],
+        **{f"{split}_{m}": metrics[split][m] for split in EVAL_SPLITS for m in METRIC_NAMES},
+        **extra,
+    }
+    if args.command == "qrc":
+        row.update(
+            backend=args.backend,
+            # only the sampled backends use it
+            backend_precision=args.precision if args.backend in ("gaussian", "shots") else "",
+            n_mem_qubits=args.n_mem_qubits, depth=args.depth, entangler=args.entangler,
+            observables=args.observables, seed=args.seed, **reservoir_info,
+        )
+    return row
+
+
+def append_summary(summary_path, row):
+    """Append `row` to summary.csv, writing the header if the file is new."""
+    write_header = not summary_path.exists()
+    with open(summary_path, "a", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=SUMMARY_FIELDS, restval="")
+        if write_header:
+            writer.writeheader()
+        writer.writerow(row)
+
+
+def save_run(args, data, metrics, scores, extra, reservoir_info=None):
     """Write config, metrics and scores to a fresh run directory and append to summary.csv."""
     output_dir = Path(args.output_dir)
     run_dir = output_dir / f"{datetime.now():%Y%m%d_%H%M%S_%f}_{args.command}"
     run_dir.mkdir(parents=True)
 
+    row = summary_row(args, data, metrics, reservoir_info or {}, extra, run_dir.name)
     config = {
         "args": {k: (str(v) if isinstance(v, Path) else v) for k, v in vars(args).items()},
+        "commit": row["commit"],
         "data_source": data_source(args),
         "features": FEATURE_SETS[args.feature_set],
+        "reservoir": reservoir_info or {},
         "splits": data["summary"],
     }
     (run_dir / "config.json").write_text(json.dumps(config, indent=2))
@@ -224,23 +296,7 @@ def save_run(args, data, metrics, scores, extra):
              **{f"y_{split}": data[f"y_{split}"] for split in scores},
              **{f"scores_{split}": s for split, s in scores.items()})
 
-    row = {
-        "run": run_dir.name,
-        "command": args.command,
-        **{k: v for k, v in data_source(args).items() if k in ("data", "size", "data_seed", "data_dir")},
-        "feature_set": args.feature_set,
-        "window_length": args.window_length,
-        "alpha": args.alpha,
-        "backend": getattr(args, "backend", ""),
-        **{f"{split}_{m}": metrics[split][m] for split in ("validation", "test") for m in ("pr_auc", "f1_score")},
-    }
-    summary_path = output_dir / "summary.csv"
-    write_header = not summary_path.exists()
-    with open(summary_path, "a", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=SUMMARY_FIELDS, restval="")
-        if write_header:
-            writer.writeheader()
-        writer.writerow(row)
+    append_summary(output_dir / "summary.csv", row)
     return run_dir
 
 
@@ -300,16 +356,16 @@ def main(argv=None):
     if args.command == "prepare":
         return None
 
-    extra = {}
+    extra, reservoir_info = {}, None
     if args.command == "baseline":
         features = baseline_features(data)
     else:
         start = time.perf_counter()
-        features = qrc_features(data, args)
+        features, reservoir_info = qrc_features(data, args)
         extra["reservoir_seconds"] = time.perf_counter() - start
 
     metrics, scores = fit_and_evaluate(features, data, args.alpha)
-    run_dir = save_run(args, data, metrics, scores, extra)
+    run_dir = save_run(args, data, metrics, scores, extra, reservoir_info)
     print_metrics(metrics)
     print(f"\nResults saved to {run_dir}")
     return run_dir
