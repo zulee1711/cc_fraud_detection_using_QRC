@@ -63,6 +63,20 @@ def test_noise_model_changes_the_features(setup, sampling):
     assert np.abs(noisy - setup[-1]).mean() > 0.02
 
 
+@pytest.mark.parametrize("batch_size", [1, 5, SAMPLES])
+def test_batching_matches_reference(setup, batch_size):
+    """Splitting the windows into PUBs (5 leaves a short last one) changes nothing."""
+    result = run(EstimatorBackend(batch_size=batch_size), setup)
+    assert result.shape == setup[-1].shape
+    np.testing.assert_allclose(result, setup[-1], atol=1e-10)
+
+
+def test_empty_input(setup):
+    windows, encoder, reservoir, observables, _ = setup
+    result = EstimatorBackend().run_batch(windows[:0], encoder, reservoir, observables)
+    assert result.shape == (0, len(observables))
+
+
 def test_invalid_arguments():
     with pytest.raises(ValueError):
         EstimatorBackend(sampling="bogus")
@@ -70,3 +84,5 @@ def test_invalid_arguments():
         EstimatorBackend(precision=-0.1)
     with pytest.raises(ValueError):
         EstimatorBackend(precision=0.0, sampling="shots")
+    with pytest.raises(ValueError):
+        EstimatorBackend(batch_size=0)
