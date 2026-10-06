@@ -279,7 +279,7 @@ def build_parser():
     commands.add_parser("baseline", parents=[common, run], help="logistic readout on the raw windows")
 
     qrc_parser = commands.add_parser("qrc", parents=[common, run], help="quantum reservoir + logistic readout")
-    qrc_parser.add_argument("--backend", choices=BACKEND_NAMES, default="statevector")
+    qrc_parser.add_argument("--backend", choices=BACKEND_NAMES, default="estimator-exact")
     qrc_parser.add_argument("--precision", type=float, default=0.05,
                             help="target std. error of each expectation value (gaussian/shots; shots ~ 1/precision**2)")
     qrc_parser.add_argument("--n-input-qubits", type=int, default=None,

@@ -20,7 +20,9 @@ class EstimatorBackend(Backend):
     """Runs the QRC circuits through a Qiskit Estimator primitive.
 
     The circuit is built once, with the window's features as a ``ParameterVector``,
-    and all windows are submitted as the parameter values of a single PUB.
+    and each window (one sample: ``window_length`` consecutive transactions) is one set
+    of its parameter values. The samples are split into PUBs of ``batch_size`` windows
+    each, all submitted in a single job.
 
     Args:
         precision (float): target standard error of every estimated expectation value.
@@ -36,16 +38,22 @@ class EstimatorBackend(Backend):
             * ``"shots"``: Qiskit's ``BackendEstimatorV2`` on ``AerSimulator``. Appends
               the measurement bases, samples ``~1/precision**2`` shots per circuit and
               averages the counts, as on hardware. Slower, but a genuine shot simulation.
+        batch_size (int): number of samples (whole windows) per PUB. Windows are never
+            split across PUBs. Aer slows down on very large PUBs, so large datasets are
+            split into several PUBs, all submitted in a single job.
     """
 
     def __init__(self, precision: float = 0.0, noise_model: Optional[NoiseModel] = None,
-                 seed: Optional[int] = None, sampling: str = "gaussian"):
+                 seed: Optional[int] = None, sampling: str = "gaussian", batch_size: int = 250):
         if sampling not in SAMPLING_MODES:
             raise ValueError(f"sampling must be one of {SAMPLING_MODES}, got {sampling!r}")
         if precision < 0:
             raise ValueError("precision must be non-negative")
         if sampling == "shots" and precision == 0:
             raise ValueError("sampling='shots' needs precision > 0 (number of shots ~ 1 / precision**2)")
+        if batch_size < 1:
+            raise ValueError(f"batch_size must be at least 1, got {batch_size}")
+        self.batch_size = batch_size
         self.precision = precision
         self.noise_model = noise_model
         self.seed = seed
@@ -87,9 +95,11 @@ class EstimatorBackend(Backend):
         return circuit
 
     def run_batch(self, windows: np.ndarray, encoder: Encoding, reservoir: Reservoir, observables: PauliList) -> np.ndarray:
-        """Run all windows with a single PUB. Observables are measured only once, after the last transaction.
+        """Run all windows in one job, ``batch_size`` windows per PUB. Observables are measured only once, after the last transaction.
         Returns np array with shape ``(samples, observables)``."""
         samples, window_length, num_features = windows.shape
+        if samples == 0:
+            return np.empty((0, len(observables)))
         n_in = reservoir.num_input_qubits
         circuit = self._build_circuit(encoder, reservoir, window_length)
         if self._backend is not None:
@@ -100,5 +110,7 @@ class EstimatorBackend(Backend):
         # (samples, 1, parameters): the singleton axis broadcasts against the observables
         parameter_values = resized.astype(float).reshape(samples, 1, window_length * n_in)
 
-        job = self.estimator.run([(circuit, observables, parameter_values)])
-        return np.asarray(job.result()[0].data.evs)
+        pubs = [(circuit, observables, parameter_values[start:start + self.batch_size])
+                for start in range(0, samples, self.batch_size)]
+        job = self.estimator.run(pubs)
+        return np.concatenate([np.asarray(result.data.evs) for result in job.result()])
