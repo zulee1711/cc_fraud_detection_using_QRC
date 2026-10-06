@@ -6,7 +6,7 @@ import copy
 import time
 
 import numpy as np
-from sklearn.metrics import f1_score, precision_score, recall_score, roc_auc_score
+from sklearn.metrics import average_precision_score, f1_score, precision_score, recall_score, roc_auc_score
 from sklearn.preprocessing import StandardScaler
 
 
@@ -23,7 +23,7 @@ def run_lstm_baseline(
     """Fit an LSTM on training windows and score the shared test split.
 
     The scaler is fit only on training windows. Validation loss selects the
-    best epoch; the test split is used only for final metrics.
+    best epoch; validation and test metrics are then reported.
     """
     try:
         import torch
@@ -112,15 +112,23 @@ def run_lstm_baseline(
     model.load_state_dict(best_state)
     elapsed = time.perf_counter() - start
     model.eval()
-    with torch.no_grad():
-        scores = torch.sigmoid(model(torch.from_numpy(X_test))).numpy()
+    metrics, scores = {}, {}
+    for split, inputs, labels in (
+        ("validation", X_validation, y_validation),
+        ("test", X_test, y_test),
+    ):
+        with torch.no_grad():
+            split_scores = torch.sigmoid(model(torch.from_numpy(inputs))).numpy()
 
-    predictions = (scores >= 0.5).astype(int)
-    metrics = {
-        "f1_score": f1_score(y_test, predictions, zero_division=0),
-        "precision": precision_score(y_test, predictions, zero_division=0),
-        "recall": recall_score(y_test, predictions, zero_division=0),
-        "roc_auc": roc_auc_score(y_test, scores),
-        "threshold_used": 0.5,
-    }
-    return {"backend": "lstm", "seconds": elapsed, **metrics}
+        predictions = (split_scores >= 0.5).astype(int)
+        metrics[split] = {
+            "pr_auc": average_precision_score(labels, split_scores),
+            "roc_auc": roc_auc_score(labels, split_scores),
+            "f1_score": f1_score(labels, predictions, zero_division=0),
+            "precision": precision_score(labels, predictions, zero_division=0),
+            "recall": recall_score(labels, predictions, zero_division=0),
+            "threshold_used": 0.5,
+        }
+        scores[split] = split_scores
+
+    return {"backend": "lstm", "seconds": elapsed, "metrics": metrics, "scores": scores}

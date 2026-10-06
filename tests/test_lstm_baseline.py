@@ -28,6 +28,10 @@ def test_lstm_baseline_trains_and_reports_classification_metrics():
 
     assert results["backend"] == "lstm"
     assert results["seconds"] >= 0
-    assert results["threshold_used"] == 0.5
-    for metric in ("f1_score", "precision", "recall", "roc_auc"):
-        assert np.isfinite(results[metric])
+    assert set(results["metrics"]) == {"validation", "test"}
+    assert set(results["scores"]) == {"validation", "test"}
+    for split in ("validation", "test"):
+        assert len(results["scores"][split]) == 24
+        assert results["metrics"][split]["threshold_used"] == 0.5
+        for metric in ("pr_auc", "f1_score", "precision", "recall", "roc_auc"):
+            assert np.isfinite(results["metrics"][split][metric])

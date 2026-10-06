@@ -12,8 +12,14 @@ def _metrics(run_dir):
     return json.loads((run_dir / "metrics.json").read_text())
 
 
-@pytest.mark.parametrize("command", [["baseline"], ["qrc", "--backend", "estimator-exact"]])
+@pytest.mark.parametrize("command", [
+    ["baseline"],
+    ["lstm", "--epochs", "2", "--hidden-size", "4", "--batch-size", "1024"],
+    ["qrc", "--backend", "estimator-exact"],
+])
 def test_run_saves_results(tmp_path, command):
+    if command[0] == "lstm":
+        pytest.importorskip("torch")
     run_dir = main([*command, "--size", "small", "--output-dir", str(tmp_path)])
 
     assert {p.name for p in run_dir.iterdir()} == {"config.json", "metrics.json", "scores.npz"}

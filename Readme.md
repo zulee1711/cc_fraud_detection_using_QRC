@@ -124,16 +124,21 @@ from qrc.hamiltonians import build_disordered_tfim
 
 ## Run experiments with the CLI
 `experiments/cli.py` runs every experiment from one shared data preparation
-(data → feature engineering → `DataProcessor` → customer windowing), fits the
-logistic readout on train and reports PR-AUC, ROC-AUC, F1, precision and recall
-on validation and test.
+(data → feature engineering → `DataProcessor` → customer windowing). `baseline`
+fits logistic regression on flattened feature windows; `lstm` trains an LSTM
+directly on the transaction sequences; `qrc` applies a quantum reservoir and
+then fits the logistic readout. Validation and test PR-AUC, ROC-AUC, F1,
+precision and recall are reported for each model.
 
 ```bash
 python -m experiments.cli prepare  --size small                 # data preparation only
 python -m experiments.cli baseline --size medium                # logistic readout on the raw windows
+python -m experiments.cli lstm --size small --epochs 10          # LSTM on transaction sequences
 python -m experiments.cli qrc      --size medium --backend estimator-exact
 python -m experiments.cli qrc --help                            # all reservoir / backend options
 ```
+The LSTM command uses validation loss for early stopping. Install the optional
+PyTorch dependency with `pip install -e ".[classical]"` before running it.
 
 **Data source.** By default the data is simulated on the fly (`--data simulate`)
 from a `--size` preset (`small`, `medium`, `large`: 10, 50, 100 customers over 365 days)
@@ -147,7 +152,7 @@ reloaded with `--data load --data-dir DIR`, which gives identical results.
 feature analysis; each set extends the previous one (see `FEATURE_SETS` in `experiments/cli.py`).
 For `qrc`, the number of input qubits defaults to the number of features.
 
-**Results.** Each `baseline`/`qrc` run writes `config.json`, `metrics.json` and
+**Results.** Each `baseline`/`lstm`/`qrc` run writes `config.json`, `metrics.json` and
 `scores.npz` to `results/runs/<timestamp>_<command>/`, and appends one line to
 `results/runs/summary.csv` for side-by-side comparison.
 
