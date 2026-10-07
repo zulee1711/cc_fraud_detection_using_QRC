@@ -44,7 +44,7 @@ from qrc.backends.statevector import StatevectorBackend
 from qrc.datasets import load_split_files, split_dataset
 from qrc.datasets.create_dataset import add_frauds, generate_dataset
 from qrc.datasets.split_dataset import main as split_and_save_dataset
-from qrc.encodings import AngleEncoding
+from qrc.encodings import AngleEncoding, ReuploadingEncoding
 from qrc.features import FeatureEngineer
 from qrc.logger import get_logger
 from qrc.observables import build_observables
@@ -101,7 +101,7 @@ SUMMARY_FIELDS = (
     "feature_set", "n_features", "window_length",
     *(f"{split}_{k}" for split in SPLITS for k in ("samples", "frauds")),
     # reservoir (qrc only)
-    "backend", "backend_precision", "n_input_qubits", "n_mem_qubits", "n_qubits", "depth", "entangler",
+    "backend", "backend_precision", "encoding_layers", "encoding_scaling", "n_input_qubits", "n_mem_qubits", "n_qubits", "depth", "entangler",
     "reset_inputs", "observables", "n_observables", "seed", "reservoir_seconds",
     # readout and metrics
     "alpha", "threshold",
@@ -186,7 +186,11 @@ def qrc_features(data, args):
         (qubit counts after defaults, number of observables) for the run record.
     """
     n_input_qubits = args.n_input_qubits or len(FEATURE_SETS[args.feature_set])
-    encoder = AngleEncoding(num_qubits=n_input_qubits)
+    if args.encoding_layers == 1:
+        encoder = AngleEncoding(num_qubits=n_input_qubits, scaling=args.encoding_scaling)
+    else:
+        encoder = ReuploadingEncoding(num_qubits=n_input_qubits, num_layers=args.encoding_layers,
+                                      scaling=args.encoding_scaling, rng=(args.seed, 1))
     reservoir = RandomCircuitReservoir(num_input_qubits=n_input_qubits, num_mem_qubits=args.n_mem_qubits,
                                        depth=args.depth, entangler=args.entangler, rng=args.seed)
     observables = build_observables(args.observables, reservoir.num_qubits)
@@ -261,6 +265,7 @@ def summary_row(args, data, metrics, reservoir_info, extra, run_name):
             backend=args.backend,
             # only the sampled backends use it
             backend_precision=args.precision if args.backend in ("gaussian", "shots") else "",
+            encoding_layers=args.encoding_layers, encoding_scaling=args.encoding_scaling,
             n_mem_qubits=args.n_mem_qubits, depth=args.depth, entangler=args.entangler,
             reset_inputs=args.reset_inputs,
             observables=args.observables, seed=args.seed, **reservoir_info,
@@ -343,6 +348,10 @@ def build_parser():
                             help="target std. error of each expectation value (gaussian/shots; shots ~ 1/precision**2)")
     qrc_parser.add_argument("--n-input-qubits", type=int, default=None,
                             help="defaults to the number of features in --feature-set")
+    qrc_parser.add_argument("--encoding-layers", type=int, default=1,
+                            help="times each transaction is encoded (data re-uploading); 1 is plain angle encoding")
+    qrc_parser.add_argument("--encoding-scaling", type=float, default=np.pi,
+                            help="angle per unit of (scaled) feature, in each encoding layer")
     qrc_parser.add_argument("--n-mem-qubits", type=int, default=2)
     qrc_parser.add_argument("--depth", type=int, default=2)
     qrc_parser.add_argument("--entangler", choices=("cx", "cry"), default="cx")
