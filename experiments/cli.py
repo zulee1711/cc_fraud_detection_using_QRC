@@ -102,7 +102,7 @@ SUMMARY_FIELDS = (
     *(f"{split}_{k}" for split in SPLITS for k in ("samples", "frauds")),
     # reservoir (qrc only)
     "backend", "backend_precision", "n_input_qubits", "n_mem_qubits", "n_qubits", "depth", "entangler",
-    "observables", "n_observables", "seed", "reservoir_seconds",
+    "reset_inputs", "observables", "n_observables", "seed", "reservoir_seconds",
     # readout and metrics
     "alpha", "threshold",
     *(f"{split}_{m}" for split in EVAL_SPLITS for m in METRIC_NAMES),
@@ -163,12 +163,14 @@ def print_data_summary(data):
 
 # --------------------------------------------------------------------------- models
 
-def make_backend(name, precision, seed):
+def make_backend(name, precision, seed, reset_inputs=False):
     if name == "statevector":
+        if reset_inputs:
+            raise ValueError("--reset-inputs needs an Estimator backend, not statevector")
         return StatevectorBackend()
     if name == "estimator-exact":
-        return EstimatorBackend()
-    return EstimatorBackend(precision=precision, seed=seed, sampling=name)
+        return EstimatorBackend(reset_inputs=reset_inputs)
+    return EstimatorBackend(precision=precision, seed=seed, sampling=name, reset_inputs=reset_inputs)
 
 
 def baseline_features(data):
@@ -188,7 +190,7 @@ def qrc_features(data, args):
     reservoir = RandomCircuitReservoir(num_input_qubits=n_input_qubits, num_mem_qubits=args.n_mem_qubits,
                                        depth=args.depth, entangler=args.entangler, rng=args.seed)
     observables = build_observables(args.observables, reservoir.num_qubits)
-    backend = make_backend(args.backend, args.precision, args.seed)
+    backend = make_backend(args.backend, args.precision, args.seed, args.reset_inputs)
     protocol = QRCProtocol(encoder, reservoir, observables, backend)
 
     features = {}
@@ -260,6 +262,7 @@ def summary_row(args, data, metrics, reservoir_info, extra, run_name):
             # only the sampled backends use it
             backend_precision=args.precision if args.backend in ("gaussian", "shots") else "",
             n_mem_qubits=args.n_mem_qubits, depth=args.depth, entangler=args.entangler,
+            reset_inputs=args.reset_inputs,
             observables=args.observables, seed=args.seed, **reservoir_info,
         )
     return row
@@ -343,6 +346,8 @@ def build_parser():
     qrc_parser.add_argument("--n-mem-qubits", type=int, default=2)
     qrc_parser.add_argument("--depth", type=int, default=2)
     qrc_parser.add_argument("--entangler", choices=("cx", "cry"), default="cx")
+    qrc_parser.add_argument("--reset-inputs", action="store_true",
+                            help="reset the input qubits before each encoding step (density-matrix simulation)")
     qrc_parser.add_argument("--observables", default="Z")
     qrc_parser.add_argument("--seed", type=int, default=42, help="reservoir and sampling seed")
     return parser

@@ -41,10 +41,15 @@ class EstimatorBackend(Backend):
         batch_size (int): number of samples (whole windows) per PUB. Windows are never
             split across PUBs. Aer slows down on very large PUBs, so large datasets are
             split into several PUBs, all submitted in a single job.
+        reset_inputs (bool): reset the input qubits to |0> before each encoding step after
+            the first, so each transaction overwrites the input register instead of rotating
+            on top of the previous state. Memory qubits are never reset. Reset is not unitary,
+            so this switches Aer to its density-matrix method (exact, but memory grows as 4**n).
     """
 
     def __init__(self, precision: float = 0.0, noise_model: Optional[NoiseModel] = None,
-                 seed: Optional[int] = None, sampling: str = "gaussian", batch_size: int = 250):
+                 seed: Optional[int] = None, sampling: str = "gaussian", batch_size: int = 250,
+                 reset_inputs: bool = False):
         if sampling not in SAMPLING_MODES:
             raise ValueError(f"sampling must be one of {SAMPLING_MODES}, got {sampling!r}")
         if precision < 0:
@@ -58,10 +63,13 @@ class EstimatorBackend(Backend):
         self.noise_model = noise_model
         self.seed = seed
         self.sampling = sampling
+        self.reset_inputs = reset_inputs
 
         backend_options = {}
         if noise_model is not None:
             backend_options["noise_model"] = noise_model
+        if reset_inputs:
+            backend_options["method"] = "density_matrix"
         if sampling == "gaussian":
             self._backend = None
             run_options = {} if seed is None else {"seed_simulator": seed}
@@ -85,13 +93,14 @@ class EstimatorBackend(Backend):
         reservoir_circuit = reservoir.circuit()
         circuit = QuantumCircuit(reservoir.num_qubits)
         for t in range(window_length):
-            # 1. encode into the input qubits
+            # 1. discard and re-prepare the input qubits (already |0> at the first step)
+            if self.reset_inputs and t > 0:
+                circuit.reset(range(n_in))
+            # 2. encode into the input qubits
             circuit.compose(encoder.encode(theta[t * n_in:(t + 1) * n_in]),
                             qubits=range(n_in), inplace=True)
-            # 2. evolve the whole register
+            # 3. evolve the whole register
             circuit.compose(reservoir_circuit, inplace=True)
-            # 3. discard and re-prepare the input qubits
-            # TODO
         return circuit
 
     def run_batch(self, windows: np.ndarray, encoder: Encoding, reservoir: Reservoir, observables: PauliList) -> np.ndarray:

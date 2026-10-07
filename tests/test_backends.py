@@ -1,5 +1,7 @@
 import numpy as np
 import pytest
+from qiskit import QuantumCircuit
+from qiskit.quantum_info import DensityMatrix
 from qiskit_aer.noise import NoiseModel, depolarizing_error
 
 from qrc.backends.estimator import EstimatorBackend
@@ -69,6 +71,26 @@ def test_batching_matches_reference(setup, batch_size):
     result = run(EstimatorBackend(batch_size=batch_size), setup)
     assert result.shape == setup[-1].shape
     np.testing.assert_allclose(result, setup[-1], atol=1e-10)
+
+
+def test_reset_inputs_matches_density_matrix(setup):
+    """With reset, each step re-prepares the input qubits in |0> before encoding; memory qubits keep their state."""
+    windows, encoder, reservoir, observables, no_reset = setup
+    expected = []
+    for window in windows:
+        rho = DensityMatrix.from_label("0" * reservoir.num_qubits)
+        for t, values in enumerate(window):
+            if t > 0:
+                rho = rho.reset(list(range(N_IN)))
+            step = QuantumCircuit(reservoir.num_qubits)
+            step.compose(encoder.encode(values), qubits=range(N_IN), inplace=True)
+            step.compose(reservoir.circuit(), inplace=True)
+            rho = rho.evolve(step)
+        expected.append([rho.expectation_value(o).real for o in observables])
+
+    result = run(EstimatorBackend(reset_inputs=True), setup)
+    np.testing.assert_allclose(result, expected, atol=1e-10)
+    assert np.abs(result - no_reset).max() > 0.01  # the reset actually changes the features
 
 
 def test_empty_input(setup):

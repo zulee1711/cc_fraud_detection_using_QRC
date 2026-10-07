@@ -235,7 +235,7 @@ cc_fraud_detection_using_QRC/
 │   ├── features/            # fraud feature engineering
 │   ├── analysis/            # exploration, feature scoring and selection, plots
 │   ├── benchmarks/          # synthetic tasks: memory, parity, NARMA10
-│   ├── backends/            # statevector, Qiskit Aer Estimator, spin-pulse, (to come) density matrix
+│   ├── backends/            # statevector, Qiskit Aer Estimator, spin-pulse
 │   ├── processing.py        # final model input: feature selection, imputation, scaling
 │   ├── sequences.py         # 2D features → (n, window_length, features) per-customer windows
 │   ├── encodings.py         # input encodings (AngleEncoding, ...)
