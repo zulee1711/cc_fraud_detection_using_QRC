@@ -12,16 +12,25 @@ logger = get_logger(__name__)
 #%%
 def split_dataset(
     transactions: pd.DataFrame,
-    validation_start: Optional[str | pd.Timestamp] = None,
-    test_start: Optional[str | pd.Timestamp] = None
+    train_ratio: float = 0.70,
+    validation_ratio: float = 0.15
     ):
-    """Transactions split by specified dates:
-    -train: from first transaction until last transaction before validation_start 
-    -validation: from validation_start until last transaction before test_start
-    -test: from test_start until last transaction
-    
-    Note: split will only work with datasets where all transactions are on same year. If more than one """
     logger.info("Starting dataset splitting...")
+
+    if train_ratio <= 0:
+        raise ValueError(
+            "train_ratio must be greater than 0."
+        )
+
+    if validation_ratio < 0:
+        raise ValueError(
+            "validation_ratio must be non-negative."
+        )
+
+    if train_ratio + validation_ratio >= 1:
+        raise ValueError(
+            "train_ratio + validation_ratio must be less than 1."
+        )
 
     if "TX_DATETIME" not in transactions.columns:
         raise ValueError(
@@ -49,45 +58,29 @@ def split_dataset(
         .dt.normalize()
         .max()
     )
-    
-    start_month = first_date.replace(day=1)
 
-    if last_date >= first_date + pd.DateOffset(years=1):
-        raise ValueError(
-            f"Transactions must cover at most one year, but they span "
-            f"from {first_date.date()} to {last_date.date()}."
-        )
-    
-    start_month = first_date.replace(day=1)
-
-    train_end = (
-        start_month + pd.DateOffset(months=7)
-        if validation_start is None
-        else pd.Timestamp(validation_start).normalize()
-    )
-
-    validation_end = (
-        start_month + pd.DateOffset(months=8)
-        if test_start is None
-        else pd.Timestamp(test_start).normalize()
-    )
-    if not first_date < train_end < validation_end <= last_date:
-        raise ValueError(
-            f"Split dates must satisfy first transaction date "
-            f"({first_date.date()}) < validation_start "
-            f"({train_end.date()}) < test_start "
-            f"({validation_end.date()}) <= last transaction date "
-            f"({last_date.date()})."
-        )
-    
     total_days = (last_date - first_date).days + 1
-    train_days = (train_end - first_date).days
-    validation_days = (validation_end - train_end).days
+
+    train_days = int(
+        total_days * train_ratio
+    )
+
+    validation_days = int(
+        total_days * validation_ratio
+    )
+
+    train_end = first_date + pd.Timedelta(
+        days=train_days
+    )
+
+    validation_end = train_end + pd.Timedelta(
+        days=validation_days
+    )
 
     train = transactions[
         transactions["TX_DATETIME"] < train_end
         ].copy()
-    
+
     validation = transactions[
         (transactions["TX_DATETIME"] >= train_end)
         & (transactions["TX_DATETIME"] < validation_end)
@@ -149,14 +142,14 @@ def split_dataset(
 #%%
 def main(
         transactions: pd.DataFrame,
-        validation_start: Optional[str | pd.Timestamp] = None,
-        test_start: Optional[str | pd.Timestamp] = None,
+        train_ratio: float = 0.70,
+        validation_ratio: float = 0.15,
         output_dir: Optional[str | Path] = None
 ):
     train, validation, test = split_dataset(
         transactions,
-        validation_start=validation_start,
-        test_start=test_start
+        train_ratio=train_ratio,
+        validation_ratio=validation_ratio
     )
 
     if output_dir is not None:

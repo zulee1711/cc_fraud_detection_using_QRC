@@ -82,7 +82,7 @@ def get_list_terminals_within_radius(customer_profile, x_y_terminals, r):
     return available_terminals
 
 #%%
-def generate_transactions_table(customer_profile, start_date="2025-01-01", nb_days=10):
+def generate_transactions_table(customer_profile, start_date="2018-04-01", nb_days=10):
     customer_transactions = []
 
     random.seed(int(customer_profile.CUSTOMER_ID))
@@ -134,7 +134,7 @@ def generate_transactions_table(customer_profile, start_date="2025-01-01", nb_da
     return customer_transactions
 
 #%%
-def generate_dataset(n_customers=5000, n_terminals=10000, nb_days=365, start_date="2025-01-01", r=5, default_random_state=0):
+def generate_dataset(n_customers=10000, n_terminals=1000000, nb_days=90, start_date="2018-04-01", r=5, default_random_state=0):
     start_time = time.time()
     customer_profiles_table = generate_customer_profiles_table(n_customers, random_state = default_random_state)
     logger.info("Time to generate customer profiles table: {0:.2}s".format(time.time() - start_time))
@@ -233,10 +233,10 @@ def add_frauds(customer_profiles_table, terminal_profiles_table, transactions_df
 
 #%%
 def run_simulation(
-        n_customers=5000,
-        n_terminals=10000,
-        nb_days=365,
-        start_date="2025-01-01",
+        n_customers=100,
+        n_terminals=1000,
+        nb_days=90,
+        start_date="2026-04-01",
         r=5,
         output_dir="raw_data"
 ):
@@ -328,5 +328,7 @@ if __name__ == "__main__":
 
     train_df, validation_df, test_df = split_dataset_main(
         transactions_df,
+        train_ratio=0.70,
+        validation_ratio=0.15,
         output_dir= Path.joinpath(PROJECT_ROOT, "data")
     )
