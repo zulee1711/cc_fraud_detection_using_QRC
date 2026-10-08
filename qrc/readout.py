@@ -142,11 +142,11 @@ class ClassicalReadout:
             ),
             "matthews_corr_coef" : matthews_corrcoef(
                  y_labels,
-                 scores
+                 y_pred
             ),
             "balanced_accuracy" : balanced_accuracy_score(
                  y_labels,
-                 scores
+                 y_pred
             ),
             "threshold_used": self.decision_threshold,
         }
