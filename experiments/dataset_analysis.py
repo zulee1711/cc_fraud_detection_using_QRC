@@ -24,7 +24,7 @@ def fraud_rate(customers=customers, terminals=terminals, simulation=SIMULATION):
         for n_terminals in terminals:
             customer_profiles, terminal_profiles, transactions = generate_dataset(n_customers=n_customers,n_terminals=n_terminals,**SIMULATION)
             transactions = add_frauds(customer_profiles, terminal_profiles, transactions)
-            train, validation, test = split_dataset(transactions, train_ratio=0.70, validation_ratio=0.15)
+            train, validation, test = split_dataset(transactions)
             
             fraud_rate = train["TX_FRAUD"].mean()
             rows.append({"n_customers":n_customers,
