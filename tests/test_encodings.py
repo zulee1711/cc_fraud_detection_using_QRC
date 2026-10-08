@@ -1,11 +1,12 @@
 import numpy as np
 import pytest
+from qiskit import QuantumCircuit
 from qiskit.circuit import ParameterVector
 from qiskit.quantum_info import Operator
 
 from qrc.backends.estimator import EstimatorBackend
 from qrc.backends.statevector import StatevectorBackend
-from qrc.encodings import AngleEncoding, ReuploadingEncoding
+from qrc.encodings import AngleEncoding, DenseAngleEncoding, ReuploadingEncoding
 from qrc.observables import build_observables
 from qrc.reservoirs import RandomCircuitReservoir
 
@@ -47,6 +48,51 @@ def test_invalid_arguments(kwargs):
 def test_accepts_parameters():
     circuit = ReuploadingEncoding(N_IN, num_layers=2).encode(ParameterVector("x", N_IN))
     assert circuit.num_parameters == N_IN
+
+
+def test_dense_encoding_applies_two_features_per_qubit():
+    encoding = DenseAngleEncoding(2)
+    circuit = encoding.encode([0.1, 0.2, 0.3, 0.4])
+
+    expected = QuantumCircuit(2)
+    expected.ry(0.1 * np.pi, 0)
+    expected.rz(0.3 * np.pi, 0)
+    expected.ry(0.2 * np.pi, 1)
+    expected.rz(0.4 * np.pi, 1)
+    assert Operator(circuit).equiv(Operator(expected))
+
+
+def test_dense_encoding_accepts_a_partial_second_feature_layer():
+    encoding = DenseAngleEncoding(2)
+    circuit = encoding.encode([0.1, 0.2, 0.3])
+
+    expected = QuantumCircuit(2)
+    expected.ry(0.1 * np.pi, 0)
+    expected.rz(0.3 * np.pi, 0)
+    expected.ry(0.2 * np.pi, 1)
+    assert Operator(circuit).equiv(Operator(expected))
+
+
+def test_dense_encoding_uses_scaling_and_min_value():
+    encoding = DenseAngleEncoding(2, axis1="x", axis2="y", scaling=2)
+    circuit = encoding.encode([0.5, 1.0, 1.5], min_value=0.5)
+
+    expected = QuantumCircuit(2)
+    expected.rx(0, 0)
+    expected.ry(2, 0)
+    expected.rx(1, 1)
+    assert Operator(circuit).equiv(Operator(expected))
+
+
+@pytest.mark.parametrize("values", [[0.1, 0.2], [0.1, 0.2, 0.3, 0.4, 0.5]])
+def test_dense_encoding_rejects_input_outside_supported_range(values):
+    with pytest.raises(ValueError):
+        DenseAngleEncoding(2).encode(values)
+
+
+def test_dense_encoding_rejects_identical_axes():
+    with pytest.raises(ValueError):
+        DenseAngleEncoding(2, axis1="y", axis2="y")
 
 
 def test_estimator_matches_statevector():

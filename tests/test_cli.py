@@ -3,9 +3,12 @@
 import csv
 import json
 
+import numpy as np
 import pytest
 
+import experiments.cli as cli
 from experiments.cli import main
+from qrc.encodings import DenseAngleEncoding
 
 
 def _metrics(run_dir):
@@ -53,3 +56,28 @@ def test_summary_records_reservoir_and_metrics(tmp_path):
     for split in ("validation", "test"):
         for metric in ("pr_auc", "roc_auc", "f1_score", "precision", "recall"):
             assert row[f"{split}_{metric}"] != ""
+
+
+def test_qrc_cli_selects_dense_encoding_when_qubits_are_fewer_than_features(monkeypatch):
+    args = cli.build_parser().parse_args(
+        ["qrc", "--n-input-qubits", "4", "--n-mem-qubits", "1"]
+    )
+    protocol_args = []
+
+    class RecordingProtocol:
+        def __init__(self, encoder, reservoir, observables, backend):
+            protocol_args.append((encoder, reservoir, observables, backend))
+
+        def run(self, windows):
+            return np.zeros((len(windows), 1))
+
+    monkeypatch.setattr(cli, "QRCProtocol", RecordingProtocol)
+    monkeypatch.setattr(cli, "make_backend", lambda *args: args)
+    data = {f"X_{split}": np.zeros((1, 1, 7)) for split in ("train", "validation", "test")}
+
+    cli.qrc_features(data, args)
+
+    assert len(protocol_args) == 1
+    encoder = protocol_args[0][0]
+    assert isinstance(encoder, DenseAngleEncoding)
+    assert encoder.num_qubits == 4
