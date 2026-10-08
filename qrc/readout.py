@@ -19,7 +19,7 @@ for validation and test data.
 
 import numpy as np
 from sklearn.linear_model import LogisticRegression, Ridge
-from sklearn.metrics import average_precision_score, f1_score, precision_score, recall_score, roc_auc_score
+from sklearn.metrics import average_precision_score, f1_score, precision_score, recall_score, roc_auc_score, balanced_accuracy_score, matthews_corrcoef
 from typing import Dict, Tuple
 from sklearn.preprocessing import StandardScaler
 
@@ -139,6 +139,14 @@ class ClassicalReadout:
             "pr_auc": average_precision_score(
                 y_labels,
                 scores,
+            ),
+            "matthews_corr_coef" : matthews_corrcoef(
+                 y_labels,
+                 scores
+            ),
+            "balanced_accuracy" : balanced_accuracy_score(
+                 y_labels,
+                 scores
             ),
             "threshold_used": self.decision_threshold,
         }
