@@ -54,7 +54,7 @@ def prepare_windows(window_length: int, data_seed: int) -> dict:
 
     customer_profiles, terminal_profiles, transactions = generate_dataset(**SIMULATION)
     transactions = add_frauds(customer_profiles, terminal_profiles, transactions)
-    train, validation, test = split_dataset(transactions, train_ratio=0.70, validation_ratio=0.15)
+    train, validation, test = split_dataset(transactions)
 
     full_data = pd.concat([train, validation, test], ignore_index=True)
     full_data.drop(columns=['TX_FRAUD_SCENARIO'], inplace=True)

@@ -58,7 +58,6 @@ def split_dataset(
             f"from {first_date.date()} to {last_date.date()}."
         )
     
-    start_month = first_date.replace(day=1)
 
     train_end = (
         start_month + pd.DateOffset(months=7)
@@ -301,3 +300,5 @@ def split_features_by_dates(
 #         validation_ratio=0.15,
 #         output_dir=processed_data_dir
 #     )
+
+

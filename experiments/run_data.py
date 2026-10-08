@@ -53,7 +53,7 @@ NUMERIC_COLUMNS = [
 ]
 
 #%%
-GENERATE = True
+GENERATE = False
 
 SIMULATION = dict(
     n_customers=100,
@@ -68,7 +68,7 @@ SIMULATION = dict(
 if GENERATE:
     customer_profiles, terminal_profiles, transactions = generate_dataset(**SIMULATION)
     transactions = add_frauds(customer_profiles, terminal_profiles, transactions)
-    train, validation, test = split_dataset(transactions, train_ratio=0.70, validation_ratio=0.15)
+    train, validation, test = split_dataset(transactions)
 else:
     splits = load_splits(DATA)
     train, validation, test = (splits['train'], splits['validation'], splits['test'])

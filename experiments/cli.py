@@ -81,7 +81,7 @@ _SET_15 = _SET_10 + [
 ]
 FEATURE_SETS = {7: _SET_7, 10: _SET_10, 15: _SET_15}
 FEATURE_WINDOWS = (1, 7, 30, 90, 180)
-TRAIN_RATIO, VALIDATION_RATIO = 0.70, 0.15
+#TRAIN_RATIO, VALIDATION_RATIO = 0.70, 0.15
 
 # ~2 transactions per customer per day, so medium is ~35k transactions over a year.
 SIZES = {
@@ -114,8 +114,8 @@ def load_transactions(args):
     transactions = add_frauds(customer_profiles, terminal_profiles, transactions)
     if args.save_data:
         # Same layout as the shared dataset, so it can be reloaded with --data load
-        return split_and_save_dataset(transactions, TRAIN_RATIO, VALIDATION_RATIO, output_dir=args.save_data)
-    return split_dataset(transactions, train_ratio=TRAIN_RATIO, validation_ratio=VALIDATION_RATIO)
+        return split_and_save_dataset(transactions, output_dir=args.save_data)
+    return split_dataset(transactions)
 
 
 def prepare_data(args):
