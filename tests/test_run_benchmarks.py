@@ -48,6 +48,14 @@ def test_narma_benchmark_runs():
     assert np.isfinite(metrics["linear_baseline_nmse"])
 
 
+@pytest.mark.parametrize("backend", ["gaussian", "shots"])
+def test_benchmarks_run_with_finite_precision(backend, memory_results):
+    noisy = run_memory_benchmark(backend=backend, precision=0.05, **SMALL)
+    assert sorted(_sweep_entries(noisy)) == sorted(_sweep_entries(memory_results))
+    assert 0.0 <= noisy["total_capacity"] <= SMALL["window_length"]
+    assert noisy["total_capacity"] != memory_results["total_capacity"]  # the noise reaches the features
+
+
 def test_memory_task_is_solvable_without_a_reservoir():
     """Control for the test below: the readout on the raw windows solves every
     delay, so a reservoir that fails it is losing the inputs."""
@@ -60,10 +68,5 @@ def test_memory_task_is_solvable_without_a_reservoir():
         assert metrics["capacity"] == pytest.approx(1.0)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="StatevectorBackend never resets the input qubits between steps (TODO in run_window), "
-           "so the reservoir loses even the current input. Remove this mark once that is fixed.",
-)
 def test_reservoir_recalls_the_current_input(memory_results):
     assert memory_results[0]["capacity"] > 0.5

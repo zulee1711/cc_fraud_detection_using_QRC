@@ -11,6 +11,7 @@ from sklearn.metrics import (
     roc_auc_score,
 )
 from sklearn.preprocessing import StandardScaler
+from qrc.decision import select_threshold_min_fp
 
 
 def run_lstm_baseline(
@@ -22,6 +23,7 @@ def run_lstm_baseline(
     batch_size=256,
     learning_rate=1e-3,
     patience=8,
+    min_recall=0.8,
 ):
     """Fit an LSTM on training windows and score the shared test split.
 
@@ -117,24 +119,37 @@ def run_lstm_baseline(
     model.load_state_dict(best_state)
     elapsed = time.perf_counter() - start
     model.eval()
-    metrics, scores = {}, {}
-    for split, inputs, labels in (
-        ("validation", X_validation, y_validation),
-        ("test", X_test, y_test),
-    ):
-        with torch.no_grad():
-            split_scores = torch.sigmoid(model(torch.from_numpy(inputs))).numpy()
 
-        predictions = (split_scores >= 0.5).astype(int)
+    # Score validation first, tune the operating threshold on validation only,
+    # then freeze it for both validation and test reporting.
+    with torch.no_grad():
+        validation_scores = torch.sigmoid(model(torch.from_numpy(X_validation))).numpy()
+        test_scores = torch.sigmoid(model(torch.from_numpy(X_test))).numpy()
+
+    decision_threshold = select_threshold_min_fp(
+        y_validation, validation_scores, min_recall=min_recall
+    )
+
+    metrics, scores = {}, {}
+    for split, labels, split_scores in (
+            ("validation", y_validation, validation_scores),
+            ("test", y_test, test_scores),
+    ):
+        predictions = (split_scores >= decision_threshold).astype(int)
+        negative = labels == 0
+        false_positive_rate = (
+            float(np.mean(predictions[negative] == 1)) if np.any(negative) else 0.0
+        )
         metrics[split] = {
-            "pr_auc": average_precision_score(labels, split_scores),
+            "average_precision": average_precision_score(labels, split_scores),
             "roc_auc": roc_auc_score(labels, split_scores),
             "f1_score": f1_score(labels, predictions, zero_division=0),
             "precision": precision_score(labels, predictions, zero_division=0),
             "recall": recall_score(labels, predictions, zero_division=0),
+            "false_positive_rate": false_positive_rate,
             "matthews_corr_coef": matthews_corrcoef(labels, predictions),
             "balanced_accuracy": balanced_accuracy_score(labels, predictions),
-            "threshold_used": 0.5,
+            "threshold_used": decision_threshold,
         }
         scores[split] = split_scores
 

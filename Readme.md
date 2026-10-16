@@ -65,7 +65,7 @@ All commands run the same data preparation:
 data (simulated or loaded) → feature engineering → DataProcessor → per-customer windows
 ```
 
-Models are fitted on **train only**. PR-AUC, ROC-AUC, F1, precision, recall, Matthews correlation
+Models are fitted on **train only**. Average precision (AP), ROC-AUC, F1, precision, recall, Matthews correlation
 coefficient (MCC) and balanced accuracy are reported on **validation and test**. Nothing is tuned on
 validation, except that the `lstm` command uses validation loss for early stopping.
 
@@ -110,7 +110,7 @@ python -m experiments.cli qrc --size medium --hamiltonian tfim --topology ring
 | `--save-data DIR`             | –          | Also write the simulated splits to `DIR` (reload with `--data load --data-dir DIR`)                                                                  |
 | `--data-dir DIR`              | `data/`    | Where `--data load` reads `transactions_{train,validation,test}.pkl`                                                                                 |
 | `--start-date`, `--end-date`  | –          | Restrict the loaded period (`YYYY-MM-DD`)                                                                                                            |
-| `--feature-set 7\|10\|15`     | `7`        | Features selected by the feature analysis. Each set extends the previous one ([list](docs/data_pipeline.md#4-feature-analysis-and-the-feature-sets)) |
+| `--feature-set 1\|7\|10\|15`   | `7`        | `1`: the raw log amount only. `7`, `10`, `15`: selected by the feature analysis, each extends the previous ([list](docs/data_pipeline.md#4-feature-analysis-and-the-feature-sets)) |
 | `--window-length`             | `3`        | Number of transactions per customer window                                                                                                           |
 
 **Readout and output**, for `baseline` and `qrc` (`--output-dir` also applies to `lstm`):
@@ -135,24 +135,23 @@ python -m experiments.cli qrc --size medium --hamiltonian tfim --topology ring
 
 | Option               | Default            | Meaning                                                                                                                   |
 | -------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------- |
-| `--backend`          | `estimator-exact`  | `estimator-exact`, `statevector`, `gaussian` or `shots` (see below)                                                       |
+| `--backend`          | `estimator-exact`  | `estimator-exact`, `gaussian` or `shots` (see below)                                                                      |
 | `--precision`        | `0.05`             | Target standard error per expectation value (`gaussian` / `shots`)                                                        |
 | `--n-input-qubits`   | number of features | Input qubits. With fewer qubits than features, dense angle encoding is used (see below)                                   |
 | `--n-mem-qubits`     | `2`                | Memory qubits                                                                                                             |
-| `--hamiltonian`      | `random`           | `random`, `tfim`, `tfim_longitudinal`, `tfim_native` or `native-exchange`                                                 |
-| `--topology`         | `linear`           | Hamiltonian connectivity: `linear`, `ring` or `fully_connected`; ignored for `--hamiltonian random`                       |
+| `--hamiltonian`      | `random`           | `random`, `tfim`, `tfim-longitudinal`, `tfim-native` or `native-exchange`                                                 |
+| `--topology`         | `linear`           | Hamiltonian connectivity: `linear`, `ring` or `fully-connected`; ignored for `--hamiltonian random`                       |
 | `--depth`            | `2`                | Reservoir circuit depth                                                                                                   |
 | `--entangler`        | `cx`               | `cx` or `cry`                                                                                                             |
 | `--encoding-layers`  | `1`                | Times each transaction is encoded (data re-uploading). `1` is plain angle encoding                                        |
 | `--encoding-scaling` | `π`                | Rotation angle per unit of (scaled) feature, in each encoding layer                                                       |
-| `--reset-inputs`     | off                | Reset the input qubits before each transaction is encoded. Needs an Estimator backend (density-matrix simulation, slower) |
+| `--reset-inputs`     | off                | Reset the input qubits before each transaction is encoded (density-matrix simulation, slower)                             |
 | `--observables`      | `Z`                | E.g. `Z`, `Z+ZZ`, `XX-all`, `XYZ` (see `build_observables` in `qrc/observables.py`)                                       |
 | `--seed`             | `42`               | Reservoir and sampling seed                                                                                               |
 
 The backends:
 
-- `estimator-exact` (default): exact, noiseless simulation with the Qiskit Aer Estimator. Windows are sent to Aer in batches, so it is the fastest exact option.
-- `statevector`: exact simulation that runs one window at a time with `qiskit.quantum_info.Statevector`. It is the simple reference implementation: same results as `estimator-exact`, but several times slower.
+- `estimator-exact` (default): exact, noiseless simulation with the Qiskit Aer Estimator. Windows are sent to Aer in batches.
 - `gaussian`: exact expectation values plus Gaussian noise of width `--precision`. This is a cheap stand-in for shot noise.
 - `shots`: real shot sampling with about `1/precision²` shots.
 
@@ -185,7 +184,7 @@ by side. A row records:
 - for `qrc`, the reservoir: backend, precision, encoding layers and scaling, qubit counts, depth,
   entangler, input reset, observables and seed, plus the reservoir runtime;
 - for `lstm`, the training seed and training time;
-- the readout: `alpha` (empty for `lstm`), the decision threshold, and every metric (PR-AUC, ROC-AUC,
+- the readout: `alpha` (empty for `lstm`), the decision threshold, and every metric (average precision, ROC-AUC,
   F1, precision, recall, MCC, balanced accuracy) on validation and test.
 
 `results/` is git-ignored.
@@ -249,13 +248,13 @@ After `pip install -e .`, `qrc` can be imported from anywhere:
 from qrc.encodings import AngleEncoding
 from qrc.reservoirs import RandomCircuitReservoir
 from qrc.observables import build_observables
-from qrc.backends.statevector import StatevectorBackend
+from qrc.backends.estimator import EstimatorBackend
 from qrc.protocol import QRCProtocol
 
 encoder = AngleEncoding(num_qubits=4)
 reservoir = RandomCircuitReservoir(num_input_qubits=4, num_mem_qubits=2, depth=2, rng=42)
 observables = build_observables("Z+ZZ", reservoir.num_qubits)
-protocol = QRCProtocol(encoder, reservoir, observables, StatevectorBackend())
+protocol = QRCProtocol(encoder, reservoir, observables, EstimatorBackend())
 
 features = protocol.run(X)   # X: (n_windows, window_length, n_features)
 ```
@@ -281,7 +280,7 @@ cc_fraud_detection_using_QRC/
 │   ├── features/            # fraud feature engineering
 │   ├── analysis/            # exploration, feature scoring and selection, plots
 │   ├── benchmarks/          # synthetic tasks: memory, parity, NARMA10
-│   ├── backends/            # statevector, Qiskit Aer Estimator, spin-pulse
+│   ├── backends/            # Qiskit Aer Estimator, spin-pulse
 │   ├── baselines/           # classical baseline models (LSTM)
 │   ├── processing.py        # final model input: feature selection, imputation, scaling
 │   ├── sequences.py         # 2D features → (n, window_length, features) per-customer windows

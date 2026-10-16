@@ -64,7 +64,7 @@ class DataProcessor:
 
         self.scalers[feature_set] = scaler
 
-        return {
+        result = {
             "X_train": X_train,
             "X_validation": X_validation,
             "X_test": X_test,
@@ -77,5 +77,20 @@ class DataProcessor:
             "groups_validation": validation["CUSTOMER_ID"].to_numpy(),
             "groups_test": test["CUSTOMER_ID"].to_numpy(),
 
+            # Metadata aligned row-for-row with X/y for downstream evaluation.
+            "timestamps_train": train["TX_DATETIME"].to_numpy(),
+            "timestamps_validation": validation["TX_DATETIME"].to_numpy(),
+            "timestamps_test": test["TX_DATETIME"].to_numpy(),
+
             "features": self.feature_sets[feature_set],
         }
+
+        for split, df in (
+                ("train", train),
+                ("validation", validation),
+                ("test", test),
+        ):
+            if "TRANSACTION_ID" in df.columns:
+                result[f"ids_{split}"] = df["TRANSACTION_ID"].to_numpy()
+
+        return result

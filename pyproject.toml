@@ -15,7 +15,9 @@ requires-python = ">=3.11"
 # `pip install -e .` gives a working checkout — no extras to remember.
 dependencies = [
     # quantum core
-    "qiskit",
+    # 2.6.0 exhausts glibc's static TLS on Linux, so sklearn's libgomp fails to
+    # load afterwards ("cannot allocate memory in static TLS block")
+    "qiskit<2.6",
     "qiskit-aer",
     "spin-pulse",
     # numerics / data

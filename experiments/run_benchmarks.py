@@ -1,6 +1,12 @@
 """Run the benchmark tasks through the QRC pipeline.
 
     python -m experiments.run_benchmarks
+    python -m experiments.run_benchmarks --backend shots --precision 0.01
+
+Every backend of ``experiments.cli`` is available. By default the benchmarks run
+once per backend, so the finite-precision ones (``gaussian``, ``shots``) can be
+compared against the exact one: the measured features carry ~``precision`` noise,
+which the readout cannot remove.
 
 The memory and parity benchmarks sweep one task parameter (the delay, the
 order). The reservoir is run once per sweep: with a fixed seed every task in the
@@ -8,9 +14,11 @@ sweep sees the same windows, only the target changes, so each one just fits a
 new readout. NARMA10 is a single task.
 """
 
+import argparse
+
 import numpy as np
 
-from qrc.backends.statevector import StatevectorBackend
+from experiments.cli import BACKEND_NAMES, make_backend
 from qrc.benchmarks import MemoryTask, NARMA10Task, ParityTask
 from qrc.encodings import AngleEncoding
 from qrc.observables import build_observables
@@ -19,12 +27,17 @@ from qrc.readout import RegressionReadout
 from qrc.reservoirs import RandomCircuitReservoir
 
 
-def build_protocol(n_input_qubits=1, n_mem_qubits=3, depth=2, observables_spec="Z+ZZ", seed=42):
-    """The encoder → reservoir → observables stack shared by every benchmark."""
+def build_protocol(n_input_qubits=1, n_mem_qubits=3, depth=2, observables_spec="Z+ZZ",
+                   reset_inputs=True, backend="estimator-exact", precision=0.05, seed=42):
+    """The encoder → reservoir → observables stack shared by every benchmark.
+
+    `backend` is one of ``experiments.cli.BACKEND_NAMES``; `precision` (the target
+    standard error per expectation value) is ignored by ``estimator-exact``.
+    """
     encoder = AngleEncoding(num_qubits=n_input_qubits)
     reservoir = RandomCircuitReservoir(num_input_qubits=n_input_qubits, num_mem_qubits=n_mem_qubits, depth=depth, rng=seed)
     observables = build_observables(observables_spec, reservoir.num_qubits)
-    return QRCProtocol(encoder, reservoir, observables, StatevectorBackend())
+    return QRCProtocol(encoder, reservoir, observables, make_backend(backend, precision, seed, reset_inputs))
 
 
 def _score_sweep(protocol, tasks, alpha):
@@ -119,9 +132,18 @@ def _print_table(title, param, results, columns):
 
 
 if __name__ == "__main__":
-    _print_table("Short-term memory", "delay", run_memory_benchmark(), ["nmse", "capacity"])
-    _print_table("Temporal parity", "order", run_parity_benchmark(), ["nmse", "capacity", "accuracy"])
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--backend", nargs="+", choices=BACKEND_NAMES, default=list(BACKEND_NAMES))
+    parser.add_argument("--precision", type=float, default=0.05,
+                        help="target standard error per expectation value (gaussian / shots)")
+    args = parser.parse_args()
 
-    narma = run_narma_benchmark()
-    print("\nNARMA10")
-    print(f"nmse: {narma['nmse']:.3f}  (linear baseline on raw inputs: {narma['linear_baseline_nmse']:.3f})")
+    for backend in args.backend:
+        kwargs = dict(backend=backend, precision=args.precision)
+        print(f"\n=== {backend}" + ("" if backend == "estimator-exact" else f" (precision {args.precision})") + " ===")
+        _print_table("Short-term memory", "delay", run_memory_benchmark(**kwargs), ["nmse", "capacity"])
+        _print_table("Temporal parity", "order", run_parity_benchmark(**kwargs), ["nmse", "capacity", "accuracy"])
+
+        narma = run_narma_benchmark(**kwargs)
+        print("\nNARMA10")
+        print(f"nmse: {narma['nmse']:.3f}  (linear baseline on raw inputs: {narma['linear_baseline_nmse']:.3f})")

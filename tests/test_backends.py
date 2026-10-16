@@ -5,12 +5,36 @@ from qiskit.quantum_info import DensityMatrix
 from qiskit_aer.noise import NoiseModel, depolarizing_error
 
 from qrc.backends.estimator import EstimatorBackend
-from qrc.backends.statevector import StatevectorBackend
-from qrc.encodings import AngleEncoding, DenseAngleEncoding
+from qrc.encodings import AngleEncoding, DenseAngleEncoding, ReuploadingEncoding
 from qrc.observables import build_observables
 from qrc.reservoirs import RandomCircuitReservoir
 
 N_IN, N_MEM, WINDOW_LENGTH, SAMPLES = 3, 2, 4, 12
+
+
+def exact_features(windows, encoder, reservoir, observables, reset_inputs=False):
+    """Reference implementation the backends are tested against: one window at a
+    time, as an exact density matrix, step by step in plain ``qiskit.quantum_info``.
+
+    Returns np array with shape ``(samples, observables)``.
+    """
+    n_in = reservoir.num_input_qubits
+    features = []
+    for window in windows:
+        rho = DensityMatrix.from_label("0" * reservoir.num_qubits)
+        for t, values in enumerate(window):
+            if reset_inputs and t > 0:
+                rho = rho.reset(list(range(n_in)))
+            # same cyclic repetition as the backends when the encoding takes more values than features
+            input_width = encoder.input_width(values.size)
+            step = QuantumCircuit(reservoir.num_qubits)
+            step.compose(encoder.encode(values[np.arange(input_width) % values.size]),
+                         qubits=range(n_in), inplace=True)
+            step.compose(reservoir.circuit(), inplace=True)
+            rho = rho.evolve(step)
+        features.append([rho.expectation_value(o).real for o in observables])
+    return np.asarray(features)
+
 
 
 @pytest.fixture
@@ -19,7 +43,7 @@ def setup():
     encoder = AngleEncoding(N_IN)
     observables = build_observables("Z+XX", N_IN + N_MEM)
     windows = np.random.default_rng(1).uniform(0, 1, (SAMPLES, WINDOW_LENGTH, N_IN))
-    exact = StatevectorBackend().run_batch(windows, encoder, reservoir, observables)
+    exact = exact_features(windows, encoder, reservoir, observables)
     return windows, encoder, reservoir, observables, exact
 
 
@@ -35,7 +59,7 @@ def depolarizing_noise_model():
     return noise_model
 
 
-def test_exact_estimator_matches_statevector(setup):
+def test_exact_estimator_matches_reference(setup):
     result = run(EstimatorBackend(), setup)
     assert result.shape == setup[-1].shape
     np.testing.assert_allclose(result, setup[-1], atol=1e-10)
@@ -73,21 +97,10 @@ def test_batching_matches_reference(setup, batch_size):
     np.testing.assert_allclose(result, setup[-1], atol=1e-10)
 
 
-def test_reset_inputs_matches_density_matrix(setup):
+def test_reset_inputs_matches_reference(setup):
     """With reset, each step re-prepares the input qubits in |0> before encoding; memory qubits keep their state."""
     windows, encoder, reservoir, observables, no_reset = setup
-    expected = []
-    for window in windows:
-        rho = DensityMatrix.from_label("0" * reservoir.num_qubits)
-        for t, values in enumerate(window):
-            if t > 0:
-                rho = rho.reset(list(range(N_IN)))
-            step = QuantumCircuit(reservoir.num_qubits)
-            step.compose(encoder.encode(values), qubits=range(N_IN), inplace=True)
-            step.compose(reservoir.circuit(), inplace=True)
-            rho = rho.evolve(step)
-        expected.append([rho.expectation_value(o).real for o in observables])
-
+    expected = exact_features(windows, encoder, reservoir, observables, reset_inputs=True)
     result = run(EstimatorBackend(reset_inputs=True), setup)
     np.testing.assert_allclose(result, expected, atol=1e-10)
     assert np.abs(result - no_reset).max() > 0.01  # the reset actually changes the features
@@ -108,33 +121,6 @@ def test_invalid_arguments():
         EstimatorBackend(precision=0.0, sampling="shots")
     with pytest.raises(ValueError):
         EstimatorBackend(batch_size=0)
-
-def test_statevector_backend_supports_dense_encoding():
-    n_input_qubits = 3
-    n_features = 4
-
-    encoder = DenseAngleEncoding(n_input_qubits)
-    reservoir = RandomCircuitReservoir(
-        n_input_qubits,
-        N_MEM,
-        rng=np.random.default_rng(0),
-    )
-    observables = build_observables("Z+XX", n_input_qubits + N_MEM)
-    windows = np.random.default_rng(2).uniform(
-        0,
-        1,
-        (2, WINDOW_LENGTH, n_features),
-    )
-
-    result = StatevectorBackend().run_batch(
-        windows,
-        encoder,
-        reservoir,
-        observables,
-    )
-
-    assert result.shape == (2, len(observables))
-
 
 def test_estimator_backend_supports_dense_encoding():
     n_input_qubits = 3
@@ -161,3 +147,13 @@ def test_estimator_backend_supports_dense_encoding():
     )
 
     assert result.shape == (2, len(observables))
+
+
+def test_estimator_matches_reference():
+    reservoir = RandomCircuitReservoir(N_IN, 2, rng=np.random.default_rng(0))
+    encoder = ReuploadingEncoding(N_IN, num_layers=3, rng=1)
+    observables = build_observables("Z+XX", reservoir.num_qubits)
+    windows = np.random.default_rng(2).uniform(0, 1, (5, 2, N_IN))
+    exact = exact_features(windows, encoder, reservoir, observables)
+    estimated = EstimatorBackend().run_batch(windows, encoder, reservoir, observables)
+    np.testing.assert_allclose(estimated, exact, atol=1e-8)

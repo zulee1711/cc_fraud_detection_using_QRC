@@ -35,11 +35,17 @@ def test_run_saves_results(tmp_path, command):
         "scores.npz",
     }
     for split in ("validation", "test"):
-        assert 0.0 <= _metrics(run_dir)[split]["pr_auc"] <= 1.0
+        assert 0.0 <= _metrics(run_dir)[split]["average_precision"] <= 1.0
+        assert "average_precision_customer" in _metrics(run_dir)[split]
+
+    saved = np.load(run_dir / "scores.npz")
+    assert np.array_equal(saved["category_test"] != "legit", saved["y_test"] == 1)
+    assert len(saved["ids_test"]) == len(saved["scores_test"])
 
     with open(tmp_path / "summary.csv", newline="") as f:
         rows = list(csv.DictReader(f))
     assert [row["run"] for row in rows] == [run_dir.name]
+    assert sum(int(rows[0][f"test_frauds_{c}"]) for c in ("amount", "terminal", "customer")) == int(rows[0]["test_frauds"])
 
 
 def test_saved_simulation_reloads_identically(tmp_path):
@@ -159,7 +165,7 @@ def test_qrc_cli_runs_with_dense_encoding(tmp_path):
 
     config = json.loads((run_dir / "config.json").read_text())
     assert config["reservoir"]["n_input_qubits"] == 6
-    assert 0.0 <= _metrics(run_dir)["test"]["pr_auc"] <= 1.0
+    assert 0.0 <= _metrics(run_dir)["test"]["average_precision"] <= 1.0
 
 
 def test_qrc_cli_runs_with_fewer_input_qubits(tmp_path):
@@ -186,7 +192,8 @@ def test_qrc_cli_runs_with_fewer_input_qubits(tmp_path):
     metrics = _metrics(run_dir)
 
     for split in ("validation", "test"):
-        assert 0.0 <= metrics[split]["pr_auc"] <= 1.0
+        assert 0.0 <= metrics[split]["average_precision"] <= 1.0
+
 
 
 def test_qrc_cli_selects_hamiltonian_and_topology(monkeypatch):
@@ -250,3 +257,124 @@ def test_qrc_cli_keeps_random_reservoir_as_default(monkeypatch):
     assert isinstance(captured[0], RandomCircuitReservoir)
     assert reservoir_info["hamiltonian"] == "random"
     assert reservoir_info["topology"] == ""
+
+
+def test_cli_runs_on_raw_amount_windows(tmp_path):
+    """Arm B's input: the raw log amount only, no engineered history."""
+    run_dir = main(["baseline", "--size", "small", "--feature-set", "1", "--window-length", "4",
+                    "--output-dir", str(tmp_path)])
+
+    with open(tmp_path / "summary.csv", newline="") as f:
+        (row,) = csv.DictReader(f)
+    assert row["run"] == run_dir.name
+    assert (row["feature_set"], row["n_features"]) == ("1", "1")
+
+
+def test_evaluation_cli_arguments_are_exposed():
+    args = cli.build_parser().parse_args(
+        ["baseline", "--min-recall", "0.9", "--top-k", "25"]
+    )
+
+    assert args.min_recall == pytest.approx(0.9)
+    assert args.top_k == 25
+
+
+def test_fit_and_evaluate_selects_threshold_on_validation(monkeypatch):
+    calls = []
+
+    class RecordingReadout:
+        def __init__(self, alpha):
+            calls.append(("init", alpha))
+            self.decision_threshold = 0.73
+
+        def fit(self, X, y):
+            calls.append(("fit", X.copy(), y.copy()))
+
+        def select_decision_threshold(self, X, y, *, min_recall):
+            calls.append(("select", X.copy(), y.copy(), min_recall))
+            return self.decision_threshold
+
+        def evaluate(self, X, y):
+            calls.append(("evaluate", X.copy(), y.copy()))
+            scores = np.full(len(y), self.decision_threshold)
+            metrics = {
+                "threshold_used": self.decision_threshold,
+                "average_precision": 0.5,
+                "roc_auc": 0.5,
+                "f1_score": 0.5,
+                "precision": 0.5,
+                "recall": 0.5,
+                "false_positive_rate": 0.5,
+                "matthews_corr_coef": 0.0,
+                "balanced_accuracy": 0.5,
+            }
+            return metrics, y, np.ones(len(y), dtype=int), scores
+
+    monkeypatch.setattr(cli, "ClassicalReadout", RecordingReadout)
+
+    features = {
+        "train": np.array([[1.0], [2.0]]),
+        "validation": np.array([[3.0], [4.0]]),
+        "test": np.array([[5.0], [6.0]]),
+    }
+    data = {
+        "y_train": np.array([0, 1]),
+        "y_validation": np.array([1, 0]),
+        "y_test": np.array([0, 1]),
+    }
+
+    metrics, _ = cli.fit_and_evaluate(
+        features,
+        data,
+        alpha=2.0,
+        min_recall=0.9,
+    )
+
+    assert calls[0] == ("init", 2.0)
+    assert calls[1][0] == "fit"
+    np.testing.assert_array_equal(calls[1][1], features["train"])
+    np.testing.assert_array_equal(calls[1][2], data["y_train"])
+
+    assert calls[2][0] == "select"
+    np.testing.assert_array_equal(calls[2][1], features["validation"])
+    np.testing.assert_array_equal(calls[2][2], data["y_validation"])
+    assert calls[2][3] == pytest.approx(0.9)
+
+    assert [call[0] for call in calls[3:]] == ["evaluate", "evaluate"]
+    assert metrics["validation"]["threshold_used"] == pytest.approx(0.73)
+    assert metrics["test"]["threshold_used"] == pytest.approx(0.73)
+
+
+def test_add_operational_metrics_uses_customer_and_timestamp_metadata(monkeypatch):
+    calls = []
+
+    def fake_card_precision(y, scores, customers, timestamps, *, top_k):
+        calls.append((y.copy(), scores.copy(), customers.copy(), timestamps.copy(), top_k))
+        return 0.4
+
+    monkeypatch.setattr(cli, "card_precision_top_k", fake_card_precision)
+
+    metrics = {"validation": {}, "test": {}}
+    scores = {
+        "validation": np.array([0.2, 0.8]),
+        "test": np.array([0.3, 0.9]),
+    }
+    data = {
+        "y_validation": np.array([0, 1]),
+        "y_test": np.array([0, 1]),
+        "groups_validation": np.array([10, 11]),
+        "groups_test": np.array([20, 21]),
+        "timestamps_validation": np.array(
+            ["2026-01-01", "2026-01-01"], dtype="datetime64[D]"
+        ),
+        "timestamps_test": np.array(
+            ["2026-01-02", "2026-01-02"], dtype="datetime64[D]"
+        ),
+    }
+
+    cli.add_operational_metrics(metrics, scores, data, top_k=25)
+
+    assert len(calls) == 2
+    assert all(call[-1] == 25 for call in calls)
+    assert metrics["validation"]["card_precision_top_k"] == pytest.approx(0.4)
+    assert metrics["test"]["card_precision_top_k"] == pytest.approx(0.4)

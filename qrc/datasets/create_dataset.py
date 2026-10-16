@@ -184,7 +184,9 @@ def generate_dataset(n_customers=5000, n_terminals=10000, nb_days=365, start_dat
     return (customer_profiles_table, terminal_profiles_table, transactions_df)
 
 #%%
-def add_frauds(customer_profiles_table, terminal_profiles_table, transactions_df):
+def add_frauds(customer_profiles_table, terminal_profiles_table, transactions_df, n_compromised_customers=3):
+    """Label the frauds of the three scenarios. `n_compromised_customers` is the number of customers
+    compromised each day in scenario 3 (3 in the Fraud Detection Handbook and the shared dataset)."""
     # By default, all transactions are genuine
     transactions_df['TX_FRAUD'] = 0
     transactions_df['TX_FRAUD_SCENARIO'] = 0
@@ -211,7 +213,7 @@ def add_frauds(customer_profiles_table, terminal_profiles_table, transactions_df
 
     # Scenario 3
     for day in range(transactions_df.TX_TIME_DAYS.max()):
-        compromised_customers = customer_profiles_table.CUSTOMER_ID.sample(n=3, random_state=day).values
+        compromised_customers = customer_profiles_table.CUSTOMER_ID.sample(n=n_compromised_customers, random_state=day).values
 
         compromised_transactions = transactions_df[(transactions_df.TX_TIME_DAYS >= day) &
                                                    (transactions_df.TX_TIME_DAYS < day + 14) &
@@ -238,6 +240,7 @@ def run_simulation(
         nb_days=365,
         start_date="2025-01-01",
         r=5,
+        n_compromised_customers=3,
         output_dir="raw_data"
 ):
     customer_profiles_table, terminal_profiles_table, transactions_df = generate_dataset(
@@ -251,7 +254,8 @@ def run_simulation(
     transactions_df = add_frauds(
         customer_profiles_table,
         terminal_profiles_table,
-        transactions_df
+        transactions_df,
+        n_compromised_customers=n_compromised_customers,
     )
 
     # SAVE DATA

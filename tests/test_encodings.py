@@ -4,11 +4,7 @@ from qiskit import QuantumCircuit
 from qiskit.circuit import ParameterVector
 from qiskit.quantum_info import Operator
 
-from qrc.backends.estimator import EstimatorBackend
-from qrc.backends.statevector import StatevectorBackend
 from qrc.encodings import AngleEncoding, DenseAngleEncoding, ReuploadingEncoding
-from qrc.observables import build_observables
-from qrc.reservoirs import RandomCircuitReservoir
 
 N_IN = 3
 VALUES = [0.1, 0.5, 0.9]
@@ -101,13 +97,3 @@ def test_one_feature_per_qubit_encodings_tile_but_never_drop_features(encoder):
 def test_dense_encoding_rejects_identical_axes():
     with pytest.raises(ValueError):
         DenseAngleEncoding(2, axis1="y", axis2="y")
-
-
-def test_estimator_matches_statevector():
-    reservoir = RandomCircuitReservoir(N_IN, 2, rng=np.random.default_rng(0))
-    encoder = ReuploadingEncoding(N_IN, num_layers=3, rng=1)
-    observables = build_observables("Z+XX", reservoir.num_qubits)
-    windows = np.random.default_rng(2).uniform(0, 1, (5, 2, N_IN))
-    exact = StatevectorBackend().run_batch(windows, encoder, reservoir, observables)
-    estimated = EstimatorBackend().run_batch(windows, encoder, reservoir, observables)
-    np.testing.assert_allclose(estimated, exact, atol=1e-8)

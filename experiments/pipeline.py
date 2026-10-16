@@ -4,7 +4,7 @@ import pandas as pd
 
 from qrc.encodings import AngleEncoding
 from qrc.reservoirs import RandomCircuitReservoir
-from qrc.backends.statevector import StatevectorBackend
+from qrc.backends.estimator import EstimatorBackend
 from qrc.protocol import QRCProtocol
 from qrc.readout import ClassicalReadout
 from qrc.observables import build_observables
@@ -32,7 +32,7 @@ def run_random_reservoir_experiment(
 ):
     encoder = AngleEncoding(num_qubits=n_input_qubits)
     reservoir = RandomCircuitReservoir(num_input_qubits=n_input_qubits, num_mem_qubits=n_mem_qubits, depth=depth, rng=seed)
-    backend = StatevectorBackend()
+    backend = EstimatorBackend()
     observables = build_observables(observables_spec, reservoir.num_qubits)
 
     protocol = QRCProtocol(encoder, reservoir, observables, backend)

@@ -23,6 +23,8 @@ from sklearn.metrics import average_precision_score, f1_score, precision_score, 
 from typing import Dict, Tuple
 from sklearn.preprocessing import StandardScaler
 
+from qrc.decision import select_threshold_min_fp
+
 class ClassicalReadout:
     """
     Logistic regression classifier for quantum reservoir outputs.
@@ -93,6 +95,22 @@ class ClassicalReadout:
          X = self.prepare_features(reservoir_outputs, fit_scaler=False)
          return self.model.predict_proba(X)[:,1]
 
+    def select_decision_threshold(
+            self,
+            validation_outputs: np.ndarray,
+            y_validation: np.ndarray,
+            *,
+            min_recall: float,
+    ) -> float:
+        """
+        Tune the threshold on validation to minimize false positives
+        """
+        scores = self.predict(validation_outputs)
+        self.decision_threshold = select_threshold_min_fp(
+            y_validation, scores, min_recall=min_recall
+        )
+        return self.decision_threshold
+
     def evaluate(self, reservoir_outputs: np.ndarray, y_labels: np.ndarray) -> Tuple[Dict[str, float], np.ndarray, np.ndarray, np.ndarray]:
         """
         Evaluate an already fitted classifier on the dataset
@@ -103,7 +121,7 @@ class ClassicalReadout:
 
         Returns:
             A tuple containing:
-            metrics: Dictionary containing F1 score, precision, recall, ROC-AUC, PR-AUC and the decision threshold used.
+            metrics: Dictionary containing F1 score, precision, recall, ROC-AUC, average precision and the decision threshold used.
             y_labels: The true labels
             y_pred: Binary predictions obtained using decision_threshold
             scores: Predicted probability of fraud for each sequence
@@ -114,6 +132,12 @@ class ClassicalReadout:
 
         # Convert probs into binary predictions
         y_pred = (scores >= self.decision_threshold).astype(int)
+
+        # False-positive rate
+        negative = y_labels == 0
+        false_positive_rate = (
+            float(np.mean(y_pred[negative] == 1)) if np.any(negative) else 0.0
+        )
 
         # Calculate matrics
         metrics = {
@@ -132,11 +156,12 @@ class ClassicalReadout:
                 y_pred,
                 zero_division=0,
             ),
+            "false_positive_rate": false_positive_rate,
             "roc_auc": roc_auc_score(
                 y_labels,
                 scores,
             ),
-            "pr_auc": average_precision_score(
+            "average_precision": average_precision_score(
                 y_labels,
                 scores,
             ),

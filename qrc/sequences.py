@@ -22,8 +22,8 @@ def window_by_customer_id(input_data, length, splits=SPLITS):
     Args:
         input_data (dict): the return value of ``DataProcessor.process()``. Uses
             ``X_{split}`` and ``groups_{split}`` for every split named in
-            `splits`, and passes ``y_{split}`` and ``features`` through
-            untouched.
+            `splits`, and passes ``y_{split}``, ``ids_{split}``, ``timestamps_{split}``
+             (when present) and ``features`` through untouched.
         length (int): window length ``L``, i.e. how many transactions deep each
             window looks — including the one being classified. ``length=1``
             reproduces the old ``X[:, None, :]`` placeholder.
@@ -35,7 +35,8 @@ def window_by_customer_id(input_data, length, splits=SPLITS):
         dict: the same keys as `input_data`, with each ``X_{split}`` promoted
         from ``(n, features)`` to ``(n, length, features)``, plus a boolean
         ``has_full_history_{split}`` of shape ``(n,)``. ``y_{split}``,
-        ``groups_{split}`` and ``features`` are unchanged — row ``i`` of every
+        ``groups_{split}``, ``ids_{split}``, ``timestamps_{split}``, and
+        ``features`` are unchanged — row ``i`` of every
         array still describes the same transaction.
     """
     if length < 1:
@@ -81,6 +82,28 @@ def window_by_customer_id(input_data, length, splits=SPLITS):
         windowed[f"X_{split}"] = windows[start:stop]
         windowed[f"y_{split}"] = np.asarray(input_data[f"y_{split}"])
         windowed[f"groups_{split}"] = group
+
+        # Preserve row-aligned metadata for downstream evaluation.
+        timestamp_key = f"timestamps_{split}"
+        if timestamp_key in input_data:
+            timestamps = np.asarray(input_data[timestamp_key])
+            if len(timestamps) != size:
+                raise ValueError(
+                    f"{split}: timestamps ({len(timestamps)}) "
+                    f"must describe the same rows as X ({size})"
+                )
+            windowed[timestamp_key] = timestamps
+
+        id_key = f"ids_{split}"
+        if id_key in input_data:
+            ids = np.asarray(input_data[id_key])
+            if len(ids) != size:
+                raise ValueError(
+                    f"{split}: ids ({len(ids)}) "
+                    f"must describe the same rows as X ({size})"
+                )
+            windowed[id_key] = ids
+
         windowed[f"has_full_history_{split}"] = has_full_history[start:stop]
         start = stop
 
