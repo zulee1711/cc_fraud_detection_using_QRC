@@ -14,7 +14,7 @@ plus the recall of each fraud category, alerts per day and Card Precision@K (qrc
 handbook definition; threshold-free). Sweeps over r_min and f_max show the trade-off around each operating point.
 
 Writes operational.md, operational_table_<rule>.tex, operational.csv (per model, seed, rule and level) and
-operational.{pdf,png}.
+operational_<rule>.{pdf,png}.
 Usage: PYTHONPATH=. .venv/bin/python results/3_tuned/operational.py
 """
 import importlib.util
@@ -165,37 +165,35 @@ def tables(df):
 
 
 def figure(df):
-    """Left: false alerts per day against r_min (min-recall rule). Right: customer-fraud recall against f_max (FPR
-    rule). Test split, mean over seeds."""
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(11, 3.8), gridspec_kw={"wspace": 0.28})
-    for model, (color, ls, marker) in MODELS.items():
-        style = dict(color=color, ls=ls, lw=2 if "tuned" in model else 1.5, marker=marker, ms=4,
-                     mfc="white" if model == "ESN-45 tuned" else color, label=model.replace(" (raw window)", ""))
-        sub = df[df["model"] == model]
-        m = sub[sub["rule"] == "min_recall"].groupby("level")["false_alerts_per_day"].mean()
-        ax1.plot(m.index, m.values, **style)
-        m = sub[sub["rule"] == "max_fpr"].groupby("level")["recall_customer"].mean()
-        ax2.plot(100 * m.index, m.values, **style)
-    ax1.axvline(R_MIN, color=MUTED, lw=1, zorder=0)
-    ax1.set_yscale("log")
-    ax1.text(R_MIN, ax1.get_ylim()[1], " operating point", color=INK, fontsize=8, va="top")
-    ax1.set_xlabel("minimum validation recall $r_{\\min}$")
-    ax1.set_ylabel("false alerts per day (test)")
-    ax1.set_xticks(R_SWEEP[::2])
-    ax1.set_title("Min-recall rule", loc="left", fontsize=10, color=INK, fontweight="bold")
-    ax2.axvline(100 * F_MAX, color=MUTED, lw=1, zorder=0)
-    ax2.set_xscale("log")
-    ax2.set_xticks([100 * f for f in F_SWEEP], [f"{100 * f:g}%" for f in F_SWEEP])
-    ax2.minorticks_off()
-    ax2.set_ylim(0, 1)
-    ax2.text(100 * F_MAX, 1, " operating point", color=INK, fontsize=8, va="top")
-    ax2.set_xlabel("maximum validation false-positive rate $f_{\\max}$")
-    ax2.set_ylabel("customer-fraud recall (test)")
-    ax2.set_title("FPR rule", loc="left", fontsize=10, color=INK, fontweight="bold")
-    ax1.legend(loc="lower right", frameon=False)
-    for ext in ("pdf", "png"):
-        fig.savefig(HERE / f"operational.{ext}")
-    plt.close(fig)
+    """Two single-panel figures (test split, mean over seeds): operational_min_recall.{pdf,png}, false alerts per day
+    against r_min (min-recall rule); operational_max_fpr.{pdf,png}, customer-fraud recall against f_max (FPR rule)."""
+    panels = {"min_recall": ("false_alerts_per_day", R_MIN, "minimum validation recall $r_{\\min}$",
+                             "false alerts per day (test)"),
+              "max_fpr": ("recall_customer", F_MAX, "maximum validation false-positive rate $f_{\\max}$",
+                          "customer-fraud recall (test)")}
+    for rule, (metric, level, xlabel, ylabel) in panels.items():
+        fig, ax = plt.subplots(figsize=(6, 3.8))
+        scale = 100 if rule == "max_fpr" else 1  # FPR budgets in %
+        for model, (color, ls, marker) in MODELS.items():
+            m = df[(df["model"] == model) & (df["rule"] == rule)].groupby("level")[metric].mean()
+            ax.plot(scale * m.index, m.values, color=color, ls=ls, lw=2 if "tuned" in model else 1.5, marker=marker,
+                    ms=4, mfc="white" if model == "ESN-45 tuned" else color, label=model.replace(" (raw window)", ""))
+        ax.axvline(scale * level, color=MUTED, lw=1, zorder=0)
+        if rule == "min_recall":
+            ax.set_yscale("log")
+            ax.set_xticks(R_SWEEP[::2])
+        else:
+            ax.set_xscale("log")
+            ax.set_xticks([100 * f for f in F_SWEEP], [f"{100 * f:g}%" for f in F_SWEEP])
+            ax.minorticks_off()
+            ax.set_ylim(0, 1)
+        ax.legend(loc="lower right", frameon=False)
+        ax.text(scale * level, ax.get_ylim()[1], " operating point", color=INK, fontsize=8, va="top")
+        ax.set_xlabel(xlabel)
+        ax.set_ylabel(ylabel)
+        for ext in ("pdf", "png"):
+            fig.savefig(HERE / f"operational_{rule}.{ext}")
+        plt.close(fig)
 
 
 def main():
