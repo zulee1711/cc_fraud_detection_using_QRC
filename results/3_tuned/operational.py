@@ -1,15 +1,20 @@
-"""Operational metrics of the tuned models (results/3_tuned) at the report's operating threshold, with logistic regression
-and the LSTM of results/2_fraud as references (L = 15).
+"""Operational metrics of the tuned models (results/3_tuned) at two threshold rules, with logistic regression and the LSTM
+of results/2_fraud as references (L = 15).
 
-The threshold is the one of the report (Evaluation Methods) and of experiments.cli: for each fitted model and seed, the
-validation threshold that minimises false positives subject to validation recall >= r_min (qrc.decision, Linh's
-select_thresholds_min_fp; r_min = 0.80 by default), applied unchanged to the test scores. At r_min = 0.80 the script
-checks that it reproduces the threshold and test metrics stored by the runs. Metrics at that threshold are those of
-ClassicalReadout.evaluate (precision, recall, FPR, F1, MCC, balanced accuracy), plus the recall of each fraud category,
-alerts per day and Card Precision@K (qrc.decision.card_precision_top_ks, handbook definition). A sweep over r_min shows
-the trade-off around the operating point.
+Both thresholds are chosen per fitted model and seed on its own validation scores and applied unchanged to the test
+scores (report, Evaluation Methods); predictions are score >= threshold.
+    min-recall rule  the report's and experiments.cli's rule: minimise validation false positives subject to
+                     validation recall >= r_min (qrc.decision.select_thresholds_min_fp, Linh's; r_min = 0.80).
+                     At r_min = 0.80 the script checks that it reproduces the threshold and test metrics stored by
+                     the runs.
+    FPR rule         maximise validation recall subject to validation FPR <= f_max, ties to fewer false positives
+                     (qrc.decision.select_thresholds_max_recall; f_max = 1 %).
+Metrics at the threshold are those of ClassicalReadout.evaluate (precision, recall, FPR, F1, MCC, balanced accuracy),
+plus the recall of each fraud category, alerts per day and Card Precision@K (qrc.decision.card_precision_top_ks,
+handbook definition; threshold-free). Sweeps over r_min and f_max show the trade-off around each operating point.
 
-Writes operational.md, operational_table.tex, operational.csv (per model, seed and r_min) and operational.{pdf,png}.
+Writes operational.md, operational_table_<rule>.tex, operational.csv (per model, seed, rule and level) and
+operational.{pdf,png}.
 Usage: PYTHONPATH=. .venv/bin/python results/3_tuned/operational.py
 """
 import importlib.util
@@ -22,7 +27,7 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import balanced_accuracy_score, f1_score, matthews_corrcoef, precision_score, recall_score
 
-from qrc.decision import card_precision_top_ks, select_thresholds_min_fp
+from qrc.decision import card_precision_top_ks, select_thresholds_max_recall, select_thresholds_min_fp
 
 matplotlib.use("Agg")
 _spec = importlib.util.spec_from_file_location("tuned", "results/3_tuned/tuned.py")
@@ -33,6 +38,10 @@ HERE = Path("results/3_tuned")
 FRAUD = Path("results/2_fraud")
 R_MIN = 0.80  # the report's and the CLI's default
 R_SWEEP = np.round(np.arange(0.50, 0.951, 0.05), 2)
+F_MAX = 0.01
+F_SWEEP = (0.001, 0.002, 0.005, 0.01, 0.02, 0.05)
+RULES = {"min_recall": ("min-recall rule", f"r_min = {R_MIN:.2f}", R_MIN),
+         "max_fpr": ("FPR rule", f"f_max = {F_MAX:.0%}", F_MAX)}
 TOP_KS = (10, 25, 50, 100)
 CATEGORIES = ("customer", "amount", "terminal")
 MODELS = {  # label -> (colour, line style, marker)
@@ -84,19 +93,25 @@ def evaluate_all(data):
     rows = []
     for label, entries in runs().items():
         for seed, stored, scores in entries:
-            thresholds = select_thresholds_min_fp(data["y_validation"], scores["validation"], min_recalls=R_SWEEP)
+            yv, sv = data["y_validation"], scores["validation"]
             cp = card_precision_top_ks(data["y_test"], scores["test"], data["groups_test"], data["timestamps_test"],
                                        top_ks=TOP_KS)
-            for r_min, t in thresholds.items():
-                m = at_threshold(data["y_test"], scores["test"], data["category_test"], data["timestamps_test"], t)
-                rows.append(dict(model=label, seed=seed, r_min=r_min, threshold=t, **m,
-                                 **{f"cp@{k}": v for k, v in cp.items()}))
-                if np.isclose(r_min, R_MIN):  # same threshold and metrics as the stored run
-                    assert np.isclose(t, stored["validation"]["threshold_used"]), (label, seed)
-                    for k in ("precision", "recall", "false_positive_rate", "f1_score", "matthews_corr_coef",
-                              "balanced_accuracy"):
-                        assert np.isclose(m[k], stored["test"][k], atol=1e-9), (label, seed, k)
-                    assert np.isclose(cp[100], stored["test"]["card_precision_top_k"]), (label, seed)
+            for rule, thresholds in (("min_recall", select_thresholds_min_fp(yv, sv, min_recalls=R_SWEEP)),
+                                     ("max_fpr", select_thresholds_max_recall(yv, sv, max_fprs=F_SWEEP))):
+                for level, t in thresholds.items():
+                    m = at_threshold(data["y_test"], scores["test"], data["category_test"], data["timestamps_test"], t)
+                    val = at_threshold(yv, sv, data["category_validation"], data["timestamps_validation"], t)
+                    rows.append(dict(model=label, seed=seed, rule=rule, level=level, threshold=t,
+                                     val_recall=val["recall"], val_fpr=val["false_positive_rate"], **m,
+                                     **{f"cp@{k}": v for k, v in cp.items()}))
+                    if rule == "min_recall" and np.isclose(level, R_MIN):  # = the stored run
+                        assert np.isclose(t, stored["validation"]["threshold_used"]), (label, seed)
+                        for k in ("precision", "recall", "false_positive_rate", "f1_score", "matthews_corr_coef",
+                                  "balanced_accuracy"):
+                            assert np.isclose(m[k], stored["test"][k], atol=1e-9), (label, seed, k)
+                        assert np.isclose(cp[100], stored["test"]["card_precision_top_k"]), (label, seed)
+                    if rule == "max_fpr":
+                        assert val["false_positive_rate"] <= level + 1e-12, (label, seed, level)
     return pd.DataFrame(rows)
 
 
@@ -104,58 +119,80 @@ COLUMNS = {"precision": "precision", "recall": "recall", "false_positive_rate": 
            "matthews_corr_coef": "MCC", "balanced_accuracy": "bal. acc.", "recall_customer": "recall customer",
            "recall_amount": "recall amount", "recall_terminal": "recall terminal",
            "alerts_per_day": "alerts / day", "false_alerts_per_day": "false alerts / day",
-           **{f"cp@{k}": f"CP@{k}" for k in TOP_KS}}
+           "val_recall": "val recall", "val_fpr": "val FPR", **{f"cp@{k}": f"CP@{k}" for k in TOP_KS}}
+
+
+def operating_point(df, rule):
+    level = RULES[rule][2]
+    at = df[(df["rule"] == rule) & np.isclose(df["level"], level)]
+    g = at.groupby("model", sort=False)[list(COLUMNS)]
+    return g.mean().loc[list(MODELS)], g.std().loc[list(MODELS)]
 
 
 def tables(df):
-    at = df[np.isclose(df["r_min"], R_MIN)]
-    g = at.groupby("model", sort=False)[list(COLUMNS)]
-    mean, std = g.mean().loc[list(MODELS)], g.std().loc[list(MODELS)]
-    fmt = {k: (".1%" if k == "false_positive_rate" else ".0f" if "per_day" in k else ".3f") for k in COLUMNS}
-    md = ["| model | " + " | ".join(COLUMNS.values()) + " |", "|---" * (len(COLUMNS) + 1) + "|"]
-    for model in MODELS:
-        cells = [f"{mean.loc[model, k]:{fmt[k]}}" + (f" ± {std.loc[model, k]:{fmt[k]}}"
-                                                     if not np.isnan(std.loc[model, k]) and fmt[k] == ".3f" else "")
-                 for k in COLUMNS]
-        md.append(f"| {model} | " + " | ".join(cells) + " |")
-    out = [f"# Operational metrics at the operating threshold (r_min = {R_MIN:.2f}), test split, L = 15\n",
-           "Threshold per model and seed: min validation FP s.t. validation recall >= r_min (qrc.decision), applied "
-           "unchanged to test. Mean ± std over seeds 42-51 (logistic regression is deterministic).\n", "\n".join(md),
-           "\n## Sweep over r_min (mean over seeds)\n", "```",
-           df.groupby(["model", "r_min"], sort=False)[["recall", "precision", "recall_customer",
-                                                       "false_alerts_per_day"]].mean().round(3).to_string(), "```"]
-    (HERE / "operational.md").write_text("\n".join(out) + "\n")
+    fmt = {k: (".2%" if k in ("false_positive_rate", "val_fpr") else ".0f" if "per_day" in k else ".3f")
+           for k in COLUMNS}
+    out = ["# Operational metrics, test split, L = 15\n",
+           "Thresholds chosen per model and seed on validation, applied unchanged to test. Mean ± std over seeds "
+           "42-51 (logistic regression is deterministic). CP@K does not depend on the threshold.\n"]
+    for rule, (name, setting, _) in RULES.items():
+        mean, std = operating_point(df, rule)
+        md = ["| model | " + " | ".join(COLUMNS.values()) + " |", "|---" * (len(COLUMNS) + 1) + "|"]
+        for model in MODELS:
+            cells = [f"{mean.loc[model, k]:{fmt[k]}}" + (f" ± {std.loc[model, k]:{fmt[k]}}"
+                                                         if not np.isnan(std.loc[model, k]) and fmt[k] == ".3f"
+                                                         else "") for k in COLUMNS]
+            md.append(f"| {model} | " + " | ".join(cells) + " |")
+        out += [f"## {name} ({setting})\n", "\n".join(md), ""]
 
-    keys = ("precision", "recall", "false_positive_rate", "f1_score", "matthews_corr_coef", "balanced_accuracy",
-            "recall_customer", "alerts_per_day", "cp@100")
-    tex = ["\\begin{tabular}{l" + "c" * len(keys) + "}", "\\toprule",
-           " & ".join(["Model", "Precision", "Recall", "FPR", "F1", "MCC", "Bal.\\ acc.", "Recall (customer)",
-                       "Alerts/day", "CP@100"]) + " \\\\", "\\midrule"]
-    for model in MODELS:
-        cells = []
-        for k in keys:
-            v = mean.loc[model, k]
-            cells.append(f"{100 * v:.1f}\\%" if k == "false_positive_rate" else f"{v:.0f}" if k == "alerts_per_day"
-                         else f"{v:.3f}")
-        tex.append(" & ".join([model] + cells) + " \\\\")
-    tex += ["\\bottomrule", "\\end{tabular}"]
-    (HERE / "operational_table.tex").write_text("\n".join(tex) + "\n")
+        keys = ("precision", "recall", "false_positive_rate", "f1_score", "matthews_corr_coef", "balanced_accuracy",
+                "recall_customer", "alerts_per_day")
+        tex = ["\\begin{tabular}{l" + "c" * len(keys) + "}", "\\toprule",
+               " & ".join(["Model", "Precision", "Recall", "FPR", "F1", "MCC", "Bal.\\ acc.", "Recall (customer)",
+                           "Alerts/day"]) + " \\\\", "\\midrule"]
+        for model in MODELS:
+            cells = [f"{100 * mean.loc[model, k]:.{1 if rule == 'min_recall' else 2}f}\\%"
+                     if k == "false_positive_rate" else f"{mean.loc[model, k]:.0f}" if k == "alerts_per_day"
+                     else f"{mean.loc[model, k]:.3f}" for k in keys]
+            tex.append(" & ".join([model] + cells) + " \\\\")
+        tex += ["\\bottomrule", "\\end{tabular}"]
+        (HERE / f"operational_table_{rule}.tex").write_text("\n".join(tex) + "\n")
+    for rule, name in (("min_recall", "r_min"), ("max_fpr", "f_max")):
+        sweep = df[df["rule"] == rule].groupby(["model", "level"], sort=False)[
+            ["recall", "precision", "recall_customer", "false_alerts_per_day"]].mean().round(3)
+        out += [f"## Sweep over {name} (mean over seeds)\n", "```", sweep.to_string(), "```", ""]
+    (HERE / "operational.md").write_text("\n".join(out))
 
 
 def figure(df):
-    """False alerts per day on test against r_min (the threshold rule's only parameter), mean over seeds."""
-    fig, ax = plt.subplots(figsize=(6, 3.8))
+    """Left: false alerts per day against r_min (min-recall rule). Right: customer-fraud recall against f_max (FPR
+    rule). Test split, mean over seeds."""
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(11, 3.8), gridspec_kw={"wspace": 0.28})
     for model, (color, ls, marker) in MODELS.items():
-        m = df[df["model"] == model].groupby("r_min")["false_alerts_per_day"].mean()
-        ax.plot(m.index, m.values, color=color, ls=ls, lw=2 if "tuned" in model else 1.5, marker=marker, ms=4,
-                mfc="white" if model == "ESN-45 tuned" else color, label=model.replace(" (raw window)", ""))
-    ax.axvline(R_MIN, color=MUTED, lw=1, zorder=0)
-    ax.set_yscale("log")
-    ax.text(R_MIN, ax.get_ylim()[1], " operating point", color=INK, fontsize=8, va="top")
-    ax.set_xlabel("minimum validation recall $r_{\\min}$")
-    ax.set_ylabel("false alerts per day (test)")
-    ax.set_xticks(R_SWEEP[::2])
-    ax.legend(loc="lower right", frameon=False)
+        style = dict(color=color, ls=ls, lw=2 if "tuned" in model else 1.5, marker=marker, ms=4,
+                     mfc="white" if model == "ESN-45 tuned" else color, label=model.replace(" (raw window)", ""))
+        sub = df[df["model"] == model]
+        m = sub[sub["rule"] == "min_recall"].groupby("level")["false_alerts_per_day"].mean()
+        ax1.plot(m.index, m.values, **style)
+        m = sub[sub["rule"] == "max_fpr"].groupby("level")["recall_customer"].mean()
+        ax2.plot(100 * m.index, m.values, **style)
+    ax1.axvline(R_MIN, color=MUTED, lw=1, zorder=0)
+    ax1.set_yscale("log")
+    ax1.text(R_MIN, ax1.get_ylim()[1], " operating point", color=INK, fontsize=8, va="top")
+    ax1.set_xlabel("minimum validation recall $r_{\\min}$")
+    ax1.set_ylabel("false alerts per day (test)")
+    ax1.set_xticks(R_SWEEP[::2])
+    ax1.set_title("Min-recall rule", loc="left", fontsize=10, color=INK, fontweight="bold")
+    ax2.axvline(100 * F_MAX, color=MUTED, lw=1, zorder=0)
+    ax2.set_xscale("log")
+    ax2.set_xticks([100 * f for f in F_SWEEP], [f"{100 * f:g}%" for f in F_SWEEP])
+    ax2.minorticks_off()
+    ax2.set_ylim(0, 1)
+    ax2.text(100 * F_MAX, 1, " operating point", color=INK, fontsize=8, va="top")
+    ax2.set_xlabel("maximum validation false-positive rate $f_{\\max}$")
+    ax2.set_ylabel("customer-fraud recall (test)")
+    ax2.set_title("FPR rule", loc="left", fontsize=10, color=INK, fontweight="bold")
+    ax1.legend(loc="lower right", frameon=False)
     for ext in ("pdf", "png"):
         fig.savefig(HERE / f"operational.{ext}")
     plt.close(fig)

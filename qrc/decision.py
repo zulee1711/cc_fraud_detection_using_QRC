@@ -222,6 +222,80 @@ def select_threshold_min_fp(
 
 
 #%%
+def select_thresholds_max_recall(
+    y_true: np.ndarray,
+    scores: np.ndarray,
+    *,
+    max_fprs: Iterable[float],
+):
+    """
+    Select decision thresholds for multiple false-positive-rate budgets.
+
+    The counterpart of ``select_thresholds_min_fp`` with the constraint on the
+    other error: for every budget, the selected threshold
+
+    1. satisfies ``false_positive_rate <= max_fpr``
+    2. maximizes recall
+    3. if recall ties, minimizes false positives (the higher threshold)
+
+    Predictions are ``scores >= threshold``, as in ``select_thresholds_min_fp``.
+    A budget too small for any threshold gives ``inf`` (nothing is flagged).
+    """
+    max_fprs = _validate_min_recalls(max_fprs)  # same checks: finite, in (0, 1]
+
+    (thresholds, false_positives, recall) = _threshold_curve(y_true, scores)
+
+    n_negative = int((np.asarray(y_true).reshape(-1) == 0).sum())
+
+    # FP is non-decreasing as the threshold decreases: the last feasible
+    # threshold has the highest recall
+    last_feasible = (
+            np.searchsorted(
+                false_positives,
+                max_fprs * n_negative,
+                side="right",
+            )
+            - 1
+    )
+
+    # Recall is non-decreasing too: the first threshold reaching that recall
+    # has the fewest false positives
+    best_indices = np.searchsorted(
+        recall,
+        recall[np.maximum(last_feasible, 0)],
+        side="left",
+    )
+
+    return {
+        float(max_fpr): (float(thresholds[best]) if last >= 0 else float("inf"))
+        for max_fpr, last, best in zip(
+            max_fprs,
+            last_feasible,
+            best_indices,
+            strict=True,
+        )
+    }
+
+#%%
+def select_threshold_max_recall(
+    y_true: np.ndarray,
+    scores: np.ndarray,
+    *,
+    max_fpr: float,
+):
+    """
+    Select one validation decision threshold under a false-positive-rate budget.
+    """
+    result = select_thresholds_max_recall(
+        y_true,
+        scores,
+        max_fprs=[max_fpr],
+    )
+
+    return result[float(max_fpr)]
+
+
+#%%
 def _validate_card_inputs(
     y_true: np.ndarray,
     scores: np.ndarray,
