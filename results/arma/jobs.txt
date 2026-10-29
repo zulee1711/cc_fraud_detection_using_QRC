@@ -1,23 +1,19 @@
 # Arm A QELM: 10 seeds, noiseless shots backend. replace with classical for baseline comp.
-qrc --data load --data-dir data/sc3_c1000_x6 --feature-set 20 --window-length 1 --n-mem-qubits 0 --depth 4 --observables Z --backend shots --seed 42 --output-dir results/arma/qelm/shots
-qrc --data load --data-dir data/sc3_c1000_x6 --feature-set 20 --window-length 1 --n-mem-qubits 0 --depth 4 --observables Z --backend shots --seed 43 --output-dir results/arma/qelm/shots
-qrc --data load --data-dir data/sc3_c1000_x6 --feature-set 20 --window-length 1 --n-mem-qubits 0 --depth 4 --observables Z --backend shots --seed 44 --output-dir results/arma/qelm/shots
-qrc --data load --data-dir data/sc3_c1000_x6 --feature-set 20 --window-length 1 --n-mem-qubits 0 --depth 4 --observables Z --backend shots --seed 45 --output-dir results/arma/qelm/shots
-qrc --data load --data-dir data/sc3_c1000_x6 --feature-set 20 --window-length 1 --n-mem-qubits 0 --depth 4 --observables Z --backend shots --seed 46 --output-dir results/arma/qelm/shots
-qrc --data load --data-dir data/sc3_c1000_x6 --feature-set 20 --window-length 1 --n-mem-qubits 0 --depth 4 --observables Z --backend shots --seed 47 --output-dir results/arma/qelm/shots
-qrc --data load --data-dir data/sc3_c1000_x6 --feature-set 20 --window-length 1 --n-mem-qubits 0 --depth 4 --observables Z --backend shots --seed 48 --output-dir results/arma/qelm/shots
-qrc --data load --data-dir data/sc3_c1000_x6 --feature-set 20 --window-length 1 --n-mem-qubits 0 --depth 4 --observables Z --backend shots --seed 49 --output-dir results/arma/qelm/shots
-qrc --data load --data-dir data/sc3_c1000_x6 --feature-set 20 --window-length 1 --n-mem-qubits 0 --depth 4 --observables Z --backend shots --seed 50 --output-dir results/arma/qelm/shots
-qrc --data load --data-dir data/sc3_c1000_x6 --feature-set 20 --window-length 1 --n-mem-qubits 0 --depth 4 --observables Z --backend shots --seed 51 --output-dir results/arma/qelm/shots
+#qrc --data load --data-dir data/sc3_c1000_x6 --feature-set 20 --window-length 1 --n-mem-qubits 0 --depth 4 --observables Z --backend shots --seed 42 --output-dir results/arma/qelm/shots
+#qrc --data load --data-dir data/sc3_c1000_x6 --feature-set 20 --window-length 1 --n-mem-qubits 0 --depth 4 --observables Z --backend shots --seed 43 --output-dir results/arma/qelm/shots
+#qrc --data load --data-dir data/sc3_c1000_x6 --feature-set 20 --window-length 1 --n-mem-qubits 0 --depth 4 --observables Z --backend shots --seed 44 --output-dir results/arma/qelm/shots
+#qrc --data load --data-dir data/sc3_c1000_x6 --feature-set 20 --window-length 1 --n-mem-qubits 0 --depth 4 --observables Z --backend shots --seed 45 --output-dir results/arma/qelm/shots
+#qrc --data load --data-dir data/sc3_c1000_x6 --feature-set 20 --window-length 1 --n-mem-qubits 0 --depth 4 --observables Z --backend shots --seed 46 --output-dir results/arma/qelm/shots
+#qrc --data load --data-dir data/sc3_c1000_x6 --feature-set 20 --window-length 1 --n-mem-qubits 0 --depth 4 --observables Z --backend shots --seed 47 --output-dir results/arma/qelm/shots
+#qrc --data load --data-dir data/sc3_c1000_x6 --feature-set 20 --window-length 1 --n-mem-qubits 0 --depth 4 --observables Z --backend shots --seed 48 --output-dir results/arma/qelm/shots
+#qrc --data load --data-dir data/sc3_c1000_x6 --feature-set 20 --window-length 1 --n-mem-qubits 0 --depth 4 --observables Z --backend shots --seed 49 --output-dir results/arma/qelm/shots
+#qrc --data load --data-dir data/sc3_c1000_x6 --feature-set 20 --window-length 1 --n-mem-qubits 0 --depth 4 --observables Z --backend shots --seed 50 --output-dir results/arma/qelm/shots
+#qrc --data load --data-dir data/sc3_c1000_x6 --feature-set 20 --window-length 1 --n-mem-qubits 0 --depth 4 --observables Z --backend shots --seed 51 --output-dir results/arma/qelm/shots
 
 # Arm A QELM: 10 seeds, noisy SpinPulse backend tbd
-#qrc --data load --data-dir data/sc3_c1000_x6 --feature-set 20 --window-length 1 --n-mem-qubits 0 --depth 4 --observables Z --backend spinpulse --noise pink --t2 50000 --seed 42 --output-dir results/arma/qelm/spinpulse
-#qrc --data load --data-dir data/sc3_c1000_x6 --feature-set 20 --window-length 1 --n-mem-qubits 0 --depth 4 --observables Z --backend spinpulse --noise pink --t2 50000 --seed 43 --output-dir results/arma/qelm/spinpulse
-#qrc --data load --data-dir data/sc3_c1000_x6 --feature-set 20 --window-length 1 --n-mem-qubits 0 --depth 4 --observables Z --backend spinpulse --noise pink --t2 50000 --seed 44 --output-dir results/arma/qelm/spinpulse
-#qrc --data load --data-dir data/sc3_c1000_x6 --feature-set 20 --window-length 1 --n-mem-qubits 0 --depth 4 --observables Z --backend spinpulse --noise pink --t2 50000 --seed 45 --output-dir results/arma/qelm/spinpulse
-#qrc --data load --data-dir data/sc3_c1000_x6 --feature-set 20 --window-length 1 --n-mem-qubits 0 --depth 4 --observables Z --backend spinpulse --noise pink --t2 50000 --seed 46 --output-dir results/arma/qelm/spinpulse
-#qrc --data load --data-dir data/sc3_c1000_x6 --feature-set 20 --window-length 1 --n-mem-qubits 0 --depth 4 --observables Z --backend spinpulse --noise pink --t2 50000 --seed 47 --output-dir results/arma/qelm/spinpulse
-#qrc --data load --data-dir data/sc3_c1000_x6 --feature-set 20 --window-length 1 --n-mem-qubits 0 --depth 4 --observables Z --backend spinpulse --noise pink --t2 50000 --seed 48 --output-dir results/arma/qelm/spinpulse
-#qrc --data load --data-dir data/sc3_c1000_x6 --feature-set 20 --window-length 1 --n-mem-qubits 0 --depth 4 --observables Z --backend spinpulse --noise pink --t2 50000 --seed 49 --output-dir results/arma/qelm/spinpulse
-#qrc --data load --data-dir data/sc3_c1000_x6 --feature-set 20 --window-length 1 --n-mem-qubits 0 --depth 4 --observables Z --backend spinpulse --noise pink --t2 50000 --seed 50 --output-dir results/arma/qelm/spinpulse
-#qrc --data load --data-dir data/sc3_c1000_x6 --feature-set 20 --window-length 1 --n-mem-qubits 0 --depth 4 --observables Z --backend spinpulse --noise pink --t2 50000 --seed 51 --output-dir results/arma/qelm/spinpulse
+#qrc --data load --data-dir data/sc3_c1000_x6 --feature-set 20 --window-length 1 --n-mem-qubits 0 --depth 4 --backend spinpulse --noise pink --t2 0 --seed 1 --output-dir results/arma/noise 
+#qrc --data load --data-dir data/sc3_c1000_x6 --feature-set 20 --window-length 1 --n-mem-qubits 0 --depth 4 --backend spinpulse --noise pink --t2 500 --seed 1 --output-dir results/arma/noise
+qrc --data load --data-dir data/sc3_c1000_x6 --feature-set 20 --window-length 1 --n-mem-qubits 0 --depth 4 --backend spinpulse --noise pink --t2 100000 --seed 1 --output-dir results/arma/noise
+qrc --data load --data-dir data/sc3_c1000_x6 --feature-set 20 --window-length 1 --n-mem-qubits 0 --depth 4  --backend spinpulse --noise pink --t2 200000 --seed 1 --output-dir results/arma/noise
+qrc --data load --data-dir data/sc3_c1000_x6 --feature-set 20 --window-length 1 --n-mem-qubits 0 --depth 4 --backend spinpulse --noise pink --t2 500000 --seed 1 --output-dir results/arma/noise
+

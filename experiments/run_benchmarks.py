@@ -22,6 +22,7 @@ from experiments.cli import (
     HAMILTONIAN_BUILDERS,
     make_backend,
 )
+from qrc.backends.spinpulse import DD_MODES, NOISE_TYPES, PULSE_SHAPES, SpinPulseConfig
 from qrc.benchmarks import IPCTask, MemoryTask, NARMA10Task, ParityTask
 from qrc.encodings import AngleEncoding
 from qrc.observables import build_observables
@@ -41,6 +42,7 @@ def build_protocol(
     seed=42,
     hamiltonian="random",
     steps=2,
+    spinpulse=None,
 ):
     """Build the encoder -> reservoir -> observables protocol."""
     encoder = AngleEncoding(num_qubits=n_input_qubits)
@@ -55,12 +57,12 @@ def build_protocol(
         )
     else:
         if hamiltonian not in HAMILTONIAN_BUILDERS:
-            valid = ["random", *HAMILTONIAN_BUILDERS.keys()]
+            valid = [*HAMILTONIAN_BUILDERS.keys()]
             raise ValueError(
                 f"Unknown Hamiltonian {hamiltonian!r}. " f"Choose from: {valid}"
             )
 
-        hamiltonian_operator = HAMILTONIAN_BUILDERS[hamiltonian](num_qubits)
+        hamiltonian_operator = HAMILTONIAN_BUILDERS[hamiltonian](num_qubits, rng=seed)
 
         reservoir = HamiltonianReservoir(
             hamiltonian=hamiltonian_operator,
@@ -78,7 +80,13 @@ def build_protocol(
         encoder,
         reservoir,
         observables,
-        make_backend(backend, precision, seed, reset_inputs),
+        make_backend(
+            backend,
+            precision,
+            seed,
+            reset_inputs=reset_inputs,
+            spinpulse=spinpulse,
+        ),
     )
 
 
@@ -237,7 +245,9 @@ def run_ipc_benchmark(
 
     Y_pred = readout.predict(protocol.run(X_test))
 
-    return task.compute_capacities(Y_pred, Y_test)
+    return task.compute_capacities(
+        Y_pred, Y_test, n_observables=len(protocol.observables)
+    )
 
 
 def _print_table(title, param, results, columns):
@@ -254,6 +264,27 @@ def _print_table(title, param, results, columns):
 
     if "total_capacity" in results:
         print(f"total capacity: {results['total_capacity']:.3f}")
+
+
+def build_spinpulse_config(args):
+    """Build generic or realistic SpinPulse hardware/noise settings."""
+    common = dict(
+        noise_type=args.noise,
+        only_idle=args.only_idle,
+        dynamical_decoupling=args.dd,
+        pulse_shape=args.pulse_shape,
+        noise_samples=args.noise_samples,
+        precision=args.precision,
+        seed=args.seed,
+    )
+    if args.hardware == "realistic":
+        return SpinPulseConfig.realistic(
+            step_ns=args.time_step_ns,
+            t2_us=args.t2_us,
+            tj_us=args.tj_us or None,
+            **common,
+        )
+    return SpinPulseConfig(T2S=args.t2, TJS=args.tj, **common)
 
 
 def main():
@@ -304,11 +335,84 @@ def main():
         default=2,
         help="random-circuit depth or Hamiltonian Trotter steps for IPC",
     )
+    parser.add_argument(
+        "--observables",
+        dest="observables_spec",
+        default="Z+ZZ",
+        help="observable specification used by the reservoir protocol (for example, Z+ZZ)",
+    )
     parser.add_argument("--max-degree", type=int, default=3)
     parser.add_argument("--max-delay", type=int, default=10)
     parser.add_argument("--washout", type=int, default=200)
     parser.add_argument("--test-split", type=float, default=0.2)
     parser.add_argument("--threshold", type=float, default=1e-3)
+
+    # SpinPulse hardware/noise options (used only with --backend spinpulse)
+    spin = parser.add_argument_group(
+        "SpinPulse backend (only with --backend spinpulse)"
+    )
+    spin.add_argument(
+        "--hardware",
+        choices=("generic", "realistic"),
+        default="generic",
+        help="generic SpinPulse settings or realistic spin-qubit hardware parameters",
+    )
+    spin.add_argument(
+        "--noise",
+        choices=NOISE_TYPES,
+        default="pink",
+        help="qubit-frequency noise model: none, white, pink (1/f), or quasistatic",
+    )
+    spin.add_argument(
+        "--t2",
+        type=float,
+        default=100.0,
+        help="generic hardware T2* in SpinPulse time units",
+    )
+    spin.add_argument(
+        "--tj",
+        type=float,
+        default=None,
+        help="generic hardware exchange-coupling dephasing time",
+    )
+    spin.add_argument(
+        "--time-step-ns",
+        type=float,
+        default=10.0,
+        help="realistic hardware simulation time step in ns",
+    )
+    spin.add_argument(
+        "--t2-us",
+        type=float,
+        default=10.0,
+        help="realistic hardware qubit T2* in microseconds",
+    )
+    spin.add_argument(
+        "--tj-us",
+        type=float,
+        default=5.0,
+        help="realistic hardware coupling dephasing time in microseconds; 0 disables it",
+    )
+    spin.add_argument(
+        "--only-idle",
+        action="store_true",
+        help="apply frequency noise to idle qubits only",
+    )
+    spin.add_argument(
+        "--dd", choices=DD_MODES, default="none", help="dynamical decoupling mode"
+    )
+    spin.add_argument(
+        "--pulse-shape",
+        choices=PULSE_SHAPES,
+        default="gaussian",
+        help="control pulse envelope",
+    )
+    spin.add_argument(
+        "--noise-samples",
+        type=int,
+        default=20,
+        help="noise realizations averaged per window",
+    )
 
     args = parser.parse_args()
     if args.ipc_reservoir_depth < 1:
@@ -320,6 +424,10 @@ def main():
             "precision": args.precision,
             "seed": args.seed,
             "hamiltonian": args.hamiltonian,
+            "observables_spec": args.observables_spec,
+            "spinpulse": (
+                build_spinpulse_config(args) if backend == "spinpulse" else None
+            ),
         }
 
         print(

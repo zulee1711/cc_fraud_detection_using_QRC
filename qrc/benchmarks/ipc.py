@@ -171,7 +171,10 @@ class IPCTask:
         return chronological_split(X, Y, self.test_split)
 
     def compute_capacities(
-        self, Y_pred: np.ndarray, Y_true: np.ndarray
+        self,
+        Y_pred: np.ndarray,
+        Y_true: np.ndarray,
+        n_observables: Optional[int] = None,
     ) -> Dict[str, float]:
         """Compute degree-wise and total IPC from readout predictions.
 
@@ -206,4 +209,13 @@ class IPCTask:
                 total_capacity += float(c)
 
         capacities["total_capacity"] = total_capacity
+
+        # Optional normalization by the theoretical bound (Fig. 3c in paper)
+        if n_observables is not None and n_observables > 0:
+            capacities["normalized_total_capacity"] = total_capacity / n_observables
+            for d in range(1, self.max_degree + 1):
+                capacities[f"normalized_degree_{d}"] = (
+                    capacities[f"degree_{d}"] / n_observables
+                )
+
         return capacities

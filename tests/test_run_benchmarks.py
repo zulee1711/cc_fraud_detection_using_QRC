@@ -101,6 +101,8 @@ def test_ipc_cli_maps_reservoir_depth_to_setup(
             hamiltonian,
             "--ipc-reservoir-depth",
             "4",
+            "--observables",
+            "XYZ+XYZ-2body",
         ],
     )
     monkeypatch.setattr(
@@ -110,6 +112,7 @@ def test_ipc_cli_maps_reservoir_depth_to_setup(
     main()
 
     assert calls[0][protocol_argument] == 4
+    assert calls[0]["observables_spec"] == "XYZ+XYZ-2body"
 
 
 def test_build_hamiltonian_protocol_uses_requested_trotter_steps():

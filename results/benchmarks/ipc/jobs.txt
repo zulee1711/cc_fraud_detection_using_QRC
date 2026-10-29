@@ -6,12 +6,12 @@
 mkdir -p results/benchmarks/ipc/precision
 
 # Add more hamiltonians/change param range if you want
-for hamiltonian in random native-exchange; do
+for hamiltonian in random tfim tfim-longitudinal tfim-native native-exchange; do
     mkdir -p "results/benchmarks/ipc/precision/${hamiltonian}"
 
     for backend in shots; do
         for precision in 0.01 0.05 0.1; do
-            for seed in $(seq 1 50); do
+            for seed in $(seq 1 10); do
                 echo "Running hamiltonian=$hamiltonian backend=$backend precision=$precision seed=$seed"
 
                 python -m experiments.run_benchmarks \
@@ -24,32 +24,49 @@ for hamiltonian in random native-exchange; do
             done
         done
     done
+
+    for backend in estimator-exact; do
+
+            for seed in $(seq 1 50); do
+                echo "Running hamiltonian=$hamiltonian backend=$backend precision=$precision seed=$seed"
+
+                python -m experiments.run_benchmarks \
+                    --tasks ipc \
+                    --backend "$backend" \
+                    --hamiltonian "$hamiltonian" \
+                    --precision "$precision" \
+                    --seed "$seed" \
+                    > "results/benchmarks/ipc/precision/${hamiltonian}/${backend}_precision${precision}_seed${seed}.txt" 2>&1
+            done
+
+    done
 done
 
 # 2. Depth
 
 mkdir -p results/benchmarks/ipc/depth
 
-for hamiltonian in random native-exchange; do
+for hamiltonian in random tfim tfim-longitudinal tfim-native native-exchange; do
     mkdir -p "results/benchmarks/ipc/depth/${hamiltonian}"
+    for backend in shots estimator-exact; do
+        for depth in 1 3 8 15; do
+            seq 1 10 | xargs -P 1 -I {} bash -c '
+                hamiltonian="$1"
+                depth="$2"
+                seed="$3"
 
-    for depth in 1 3 8 15; do
-        seq 1 10 | xargs -P 2 -I {} bash -c '
-            hamiltonian="$1"
-            depth="$2"
-            seed="$3"
+                echo "Running hamiltonian=$hamiltonian depth=$depth backend=shots precision=0.01 seed=$seed"
 
-            echo "Running hamiltonian=$hamiltonian depth=$depth backend=shots precision=0.01 seed=$seed"
-
-            python -m experiments.run_benchmarks \
-                --tasks ipc \
-                --backend shots \
-                --hamiltonian "$hamiltonian" \
-                --precision 0.01 \
-                --seed "$seed" \
-                --ipc-reservoir-depth "$depth" \
-                > "results/benchmarks/ipc/depth/${hamiltonian}/shots_precision0.01_depth${depth}_seed${seed}.txt" 2>&1
-        ' _ "$hamiltonian" "$depth" {}
+                python -m experiments.run_benchmarks \
+                    --tasks ipc \
+                    --backend "$backend" \
+                    --hamiltonian "$hamiltonian" \
+                    --precision 0.01 \
+                    --seed "$seed" \
+                    --ipc-reservoir-depth "$depth" \
+                    > "results/benchmarks/ipc/depth/${hamiltonian}/shots_precision0.01_depth${depth}_seed${seed}.txt" 2>&1
+            ' _ "$hamiltonian" "$depth" {}
+        done
     done
 done
 
@@ -57,57 +74,386 @@ done
 
 mkdir -p results/benchmarks/ipc/window
 
-for hamiltonian in tfim native-exchange; do
+for hamiltonian in tfim tfim-longitudinal tfim-native native-exchange; do
     mkdir -p "results/benchmarks/ipc/window/${hamiltonian}"
+    for backend in shots estimator-exact; do
 
-    for window_length in 5 10 15 20; do
-        seq 1 10 | xargs -P 1 -I {} bash -c '
-            hamiltonian="$1"
-            window_length="$2"
-            seed="$3"
-            max_delay=$((window_length - 1))
+        for window_length in 5 10 15 20 50; do
+            seq 1 10 | xargs -P 1 -I {} bash -c '
+                hamiltonian="$1"
+                window_length="$2"
+                seed="$3"
+                max_delay=$((window_length - 1))
 
-            echo "Running hamiltonian=$hamiltonian window_length=$window_length max_delay=$max_delay backend=shots precision=0.01 seed=$seed"
+                echo "Running hamiltonian=$hamiltonian window_length=$window_length max_delay=$max_delay backend=shots precision=0.01 seed=$seed"
 
-            python -m experiments.run_benchmarks \
-                --tasks ipc \
-                --backend shots \
-                --hamiltonian "$hamiltonian" \
-                --precision 0.01 \
-                --seed "$seed" \
-                --ipc-reservoir-depth 2 \
-                --ipc-window-length "$window_length" \
-                --max-delay "$max_delay" \
-                > "results/benchmarks/ipc/window/${hamiltonian}/shots_precision0.01_window${window_length}_seed${seed}.txt" 2>&1
-        ' _ "$hamiltonian" "$window_length" {}
+                python -m experiments.run_benchmarks \
+                    --tasks ipc \
+                    --backend shots \
+                    --hamiltonian "$hamiltonian" \
+                    --precision 0.01 \
+                    --seed "$seed" \
+                    --ipc-reservoir-depth 2 \
+                    --ipc-window-length "$window_length" \
+                    --max-delay "$max_delay" \
+                    > "results/benchmarks/ipc/window/${hamiltonian}/shots_precision0.01_window${window_length}_seed${seed}.txt" 2>&1
+            ' _ "$hamiltonian" "$window_length" {}
+        done
     done
 done
 
 for hamiltonian in random; do
     mkdir -p "results/benchmarks/ipc/window/${hamiltonian}"
+    for backend in shots estimator-exact; do
 
-    for window_length in 5 10 15 20; do
-        seq 1 10 | xargs -P 1 -I {} bash -c '
-            hamiltonian="$1"
-            window_length="$2"
-            seed="$3"
-            max_delay=$((window_length - 1))
+        for window_length in 5 10 15 20; do
+            seq 1 10 | xargs -P 1 -I {} bash -c '
+                hamiltonian="$1"
+                window_length="$2"
+                seed="$3"
+                max_delay=$((window_length - 1))
 
-            echo "Running hamiltonian=$hamiltonian window_length=$window_length max_delay=$max_delay backend=shots precision=0.01 seed=$seed"
+                echo "Running hamiltonian=$hamiltonian window_length=$window_length max_delay=$max_delay backend=shots precision=0.01 seed=$seed"
 
-            python -m experiments.run_benchmarks \
-                --tasks ipc \
-                --backend shots \
-                --hamiltonian "$hamiltonian" \
-                --precision 0.01 \
-                --seed "$seed" \
-                --ipc-reservoir-depth 4 \
-                --ipc-window-length "$window_length" \
-                --max-delay "$max_delay" \
-                > "results/benchmarks/ipc/window/${hamiltonian}/shots_precision0.01_window${window_length}_seed${seed}.txt" 2>&1
-        ' _ "$hamiltonian" "$window_length" {}
+                python -m experiments.run_benchmarks \
+                    --tasks ipc \
+                    --backend shots \
+                    --hamiltonian "$hamiltonian" \
+                    --precision 0.01 \
+                    --seed "$seed" \
+                    --ipc-reservoir-depth 4 \
+                    --ipc-window-length "$window_length" \
+                    --max-delay "$max_delay" \
+                    > "results/benchmarks/ipc/window/${hamiltonian}/shots_precision0.01_window${window_length}_seed${seed}.txt" 2>&1
+            ' _ "$hamiltonian" "$window_length" {}
+        done
+    done
+done
+
+
+# 4. Observables
+mkdir -p "results/benchmarks/ipc/observables"
+
+for hamiltonian in random tfim tfim-longitudinal tfim-native native-exchange; do
+    mkdir -p "results/benchmarks/ipc/observables/${hamiltonian}"
+    for backend in shots estimator-exact; do
+        for obs in Z Z+ZZ XYZ XYZ+XYZ-2body XYZ+XYZ-2body-all; do
+            seq 1 10 | xargs -P 1 -I {} bash -c '
+                hamiltonian="$1"
+                depth="$2"
+                seed="$3"
+
+                echo "Running hamiltonian=$hamiltonian observables=$obs backend=shots precision=0.01 seed=$seed"
+
+                python -m experiments.run_benchmarks \
+                    --tasks ipc \
+                    --backend "$backend" \
+                    --hamiltonian "$hamiltonian" \
+                    --precision 0.01 \
+                    --observables "$obs" \
+                    --seed "$seed" \
+                    > "results/benchmarks/ipc/observables/${hamiltonian}/shots_precision0.01_depth${depth}_seed${seed}.txt" 2>&1
+            ' _ "$hamiltonian" "$depth" {}
+        done
+    done
+done
+
+
+for hamiltonian in tfim-longitudinal tfim-native native-exchange; do
+    out="results/benchmarks/ipc/observables/${hamiltonian}"
+    mkdir -p "$out"
+
+    for backend in shots estimator-exact; do
+        for precision in 0.01 0.05 0.1; do
+            if [ "$backend" = "estimator-exact" ] && [ "$precision" != "0.01" ]; then
+                continue
+            fi
+
+            for obs in Z Z+ZZ XYZ XYZ+XYZ-2body XYZ+XYZ-2body-all; do
+                for seed in $(seq 1 10); do
+                    logfile="${out}/${backend}_obs-${obs}_precision${precision}_seed${seed}.txt"
+
+                    echo "Running hamiltonian=$hamiltonian observables=$obs backend=$backend precision=$precision seed=$seed"
+
+                    python -m experiments.run_benchmarks \
+                        --tasks ipc \
+                        --backend "$backend" \
+                        --hamiltonian "$hamiltonian" \
+                        --precision "$precision" \
+                        --observables "$obs" \
+                        --seed "$seed" \
+                        > "$logfile" 2>&1
+
+                    if [ $? -ne 0 ]; then
+                        echo "FAILED: $logfile"
+                        tail -20 "$logfile"
+                    fi
+                done
+            done
+        done
     done
 done
 
 
 
+#!/usr/bin/env bash
+set -euo pipefail
+
+OUT="results/benchmarks/ipc/observables"
+mkdir -p "$OUT"
+
+HAMILTONIANS=(
+    random
+    tfim
+    tfim-longitudinal
+    tfim-native
+    native-exchange
+)
+
+OBSERVABLES=(
+    Z
+    Z+ZZ
+    XYZ
+    XYZ+XYZ-2body
+    XYZ+XYZ-2body-all
+)
+
+for hamiltonian in "${HAMILTONIANS[@]}"; do
+    for observables in "${OBSERVABLES[@]}"; do
+        for seed in $(seq 1 10); do
+            safe_obs="${observables//+/_}"
+
+            echo "Hamiltonian=$hamiltonian observables=$observables seed=$seed"
+
+            python -m experiments.run_benchmarks \
+                --tasks ipc \
+                --backend spinpulse \
+                --hardware realistic \
+                --noise pink \
+                --t2-us 0.42 \
+                --tj-us 0.42 \
+                --time-step-ns 1 \
+                --noise-samples 20 \
+                --hamiltonian "$hamiltonian" \
+                --observables "$observables" \
+                --seed "$seed" \
+                --ipc-length 3000 \
+                --ipc-window-length 15 \
+                --max-degree 3 \
+                --max-delay 10 \
+                > "$OUT/${hamiltonian}/$spinpulse__${safe_obs}_seed${seed}.txt" 2>&1
+        done
+    done
+done
+
+#!/usr/bin/env bash
+set -euo pipefail
+
+
+# -------------xwFINAL OBS COMMAND FOR BECNHMARKING ------------
+
+OUT="results/benchmarks/ipc/observables"
+BACKEND="spinpulse"
+
+mkdir -p "$OUT"
+
+HAMILTONIANS=(
+    random
+    tfim
+    tfim-longitudinal
+    tfim-native
+    native-exchange
+)
+
+OBSERVABLES=(
+    Z
+    Z+ZZ
+
+)
+
+for hamiltonian in "${HAMILTONIANS[@]}"; do
+    mkdir -p "$OUT/$hamiltonian"
+
+    if [[ "$hamiltonian" == "random" ]]; then
+        depth=4
+    else
+        depth=2
+    fi
+
+    for observables in "${OBSERVABLES[@]}"; do
+        for seed in $(seq 1 10); do
+            safe_obs="${observables//+/_}"
+            logfile="$OUT/$hamiltonian/${BACKEND}__${safe_obs}_seed${seed}.txt"
+
+            echo "Hamiltonian=$hamiltonian observables=$observables seed=$seed"
+            echo "Log: $logfile"
+
+            python -m experiments.run_benchmarks \
+                --tasks ipc \
+                --ipc-reservoir-depth "$depth" \
+                --backend "$BACKEND" \
+                --hardware realistic \
+                --noise pink \
+                --t2-us 10 \
+                --tj-us 10 \
+                --time-step-ns 1 \
+                --noise-samples 20 \
+                --hamiltonian "$hamiltonian" \
+                --observables "$observables" \
+                --seed "$seed" \
+                --ipc-length 3000 \
+                --ipc-window-length 15 \
+                --max-degree 3 \
+                --max-delay 10 \
+                > "$logfile" 2>&1
+        done
+    done
+done
+
+echo "All observables benchmarks completed."
+
+# --- end -----
+
+
+OUT="results/benchmarks/ipc/observables"
+mkdir -p "$OUT"
+
+HAMILTONIANS=(
+    random
+    tfim
+    tfim-longitudinal
+    tfim-native
+    native-exchange
+)
+
+OBSERVABLES=(
+    Z
+    Z+ZZ
+
+)
+
+for hamiltonian in "${HAMILTONIANS[@]}"; do
+    mkdir -p "$OUT/$hamiltonian"
+
+    for observables in "${OBSERVABLES[@]}"; do
+        for seed in $(seq 1 10); do
+            safe_obs="${observables//+/_}"
+            outfile="$OUT/$hamiltonian/spinpulse__${safe_obs}_seed${seed}_precision0.01.txt"
+
+            if [[ -f "$outfile" ]]; then
+                echo "SKIP: Hamiltonian=$hamiltonian observables=$observables seed=$seed"
+                continue
+            fi
+
+            echo "RUN: Hamiltonian=$hamiltonian observables=$observables seed=$seed"
+
+            python -m experiments.run_benchmarks \
+                --tasks ipc \
+                --backend spinpulse \
+                --hardware realistic \
+                --precision 0.01 \
+                --noise pink \
+                --t2-us 10 \
+                --tj-us 10 \
+                --time-step-ns 1 \
+                --noise-samples 20 \
+                --hamiltonian "$hamiltonian" \
+                --observables "$observables" \
+                --seed "$seed" \
+                --ipc-length 3000 \
+                --ipc-window-length 15 \
+                --max-degree 3 \
+                --max-delay 10 \
+                > "$outfile" 2>&1
+        done
+    done
+done
+
+
+OUT="results/benchmarks/ipc/observables"
+mkdir -p "$OUT"
+
+HAMILTONIANS=(
+   
+    tfim-native
+
+)
+
+OBSERVABLES=(
+    Z
+    Z+ZZ
+    XYZ
+)
+
+PRECISIONS=(
+    0.01
+    0.05
+    0.1
+)
+
+BACKEND="shots"  # Change to estimator-exact if needed
+
+for hamiltonian in "${HAMILTONIANS[@]}"; do
+    mkdir -p "$OUT/$hamiltonian"
+
+    for observables in "${OBSERVABLES[@]}"; do
+        safe_obs="${observables//+/_}"
+
+
+            for seed in $(seq 1 10); do
+                outfile="$OUT/$hamiltonian/$estimator-exact_${safe_obs}_precision${precision}_seed${seed}.txt"
+
+                if [[ -f "$outfile" ]]; then
+                    echo "SKIP: Hamiltonian=$hamiltonian observables=$observables precision=$precision seed=$seed"
+                    continue
+                fi
+
+                echo "RUN: Hamiltonian=$hamiltonian observables=$observables precision=$precision seed=$seed"
+
+                python -m experiments.run_benchmarks \
+                    --tasks ipc \
+                    --backend estimator-exact \
+
+                    --hamiltonian "$hamiltonian" \
+                    --observables "$observables" \
+                    --seed "$seed" \
+                    --ipc-length 3000 \
+                    --ipc-window-length 15 \
+                    --max-degree 3 \
+                    --max-delay 10 \
+                    > "$outfile" 2>&1
+            done
+
+    done
+done
+
+
+#!/usr/bin/env bash
+set -euo pipefail
+
+OUT="results/benchmarks/ipc/observables_copy"
+mkdir -p "$OUT"
+
+SEEDS=( {1..10} )
+
+for seed in "${SEEDS[@]}"; do
+   
+    python -m experiments.run_benchmarks \
+        --task ipc \
+        --hamiltonian tfim \
+        --observables Z \
+        --backend shots \
+        --precision 0.1 \
+        --seed "$seed" \
+        > "$OUT/shots_tfim_Z_precision0.1_seed${seed}.txt" 2>&1
+
+
+    python -m experiments.run_benchmarks \
+        --task ipc \
+        --hamiltonian native-exchange \
+        --observables XYZ \
+        --backend shots \
+        --precision 0.1 \
+        --seed "$seed" \
+        > "$OUT/shots_native-exchange_XYZ_precision0.1_seed${seed}.txt" 2>&1
+done
