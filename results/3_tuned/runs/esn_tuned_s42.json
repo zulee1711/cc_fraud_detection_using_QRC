@@ -1,0 +1,50 @@
+[
+ {
+  "model": "esn",
+  "L": 15,
+  "seed": 42,
+  "params": {
+   "spectral_radius": 0.82518772676336,
+   "leak_rate": 0.2563136358917179,
+   "input_scaling": 2.1563450019957746,
+   "alpha": 0.00015412894617888143
+  },
+  "n_trials": 100,
+  "observables": "XYZ-strings",
+  "budget": null,
+  "n_features": 45,
+  "reservoir_seconds": 13.530019842999991,
+  "metrics": {
+   "validation": {
+    "f1_score": 0.3482982888173265,
+    "precision": 0.22259887005649717,
+    "recall": 0.8001160429358862,
+    "false_positive_rate": 0.09773123909249563,
+    "roc_auc": 0.8934179643992527,
+    "average_precision": 0.7329136502762199,
+    "matthews_corr_coef": 0.38852245264988566,
+    "balanced_accuracy": 0.8511924019216953,
+    "threshold_used": 0.027534784530332097,
+    "card_precision_top_k": 0.07518518518518517,
+    "average_precision_amount": 0.9795375237167249,
+    "average_precision_terminal": 0.005887996440710632,
+    "average_precision_customer": 0.5846742949424036
+   },
+   "test": {
+    "f1_score": 0.3460033864658142,
+    "precision": 0.22005198663200892,
+    "recall": 0.8091206990715456,
+    "false_positive_rate": 0.10246753373466938,
+    "roc_auc": 0.899737092978941,
+    "average_precision": 0.743548667043767,
+    "matthews_corr_coef": 0.38751936467514325,
+    "balanced_accuracy": 0.8533265826684381,
+    "threshold_used": 0.027534784530332097,
+    "card_precision_top_k": 0.07232142857142858,
+    "average_precision_amount": 0.9768739510220994,
+    "average_precision_terminal": 0.005417584966033355,
+    "average_precision_customer": 0.583643601357296
+   }
+  }
+ }
+]
