@@ -1,0 +1,59 @@
+{
+  "args": {
+    "command": "esn",
+    "data": "load",
+    "size": "medium",
+    "data_seed": 0,
+    "save_data": null,
+    "data_dir": "data/sc3_c1000_x6",
+    "start_date": null,
+    "end_date": null,
+    "feature_set": 1,
+    "window_length": 15,
+    "output_dir": "results/2_fraud/cli_runs/esn45_L15",
+    "alpha": 1.0,
+    "min_recall": 0.8,
+    "top_k": 100,
+    "n_units": 45,
+    "spectral_radius": 0.9,
+    "leak_rate": 1.0,
+    "input_scaling": 1.0,
+    "bias_scaling": 0.2,
+    "density": 1.0,
+    "seed": 46
+  },
+  "commit": "04f5f02",
+  "data_source": {
+    "data": "load",
+    "data_dir": "data/sc3_c1000_x6",
+    "start_date": null,
+    "end_date": null
+  },
+  "features": [
+    "TX_AMOUNT_LOG"
+  ],
+  "reservoir": {},
+  "splits": {
+    "train": {
+      "samples": 483807,
+      "frauds": 15793,
+      "frauds_amount": 7122,
+      "frauds_terminal": 2495,
+      "frauds_customer": 6176
+    },
+    "validation": {
+      "samples": 102003,
+      "frauds": 3447,
+      "frauds_amount": 1536,
+      "frauds_terminal": 575,
+      "frauds_customer": 1336
+    },
+    "test": {
+      "samples": 106153,
+      "frauds": 3662,
+      "frauds_amount": 1680,
+      "frauds_terminal": 581,
+      "frauds_customer": 1401
+    }
+  }
+}

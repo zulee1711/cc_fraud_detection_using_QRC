@@ -1,0 +1,427 @@
+lstm --window-length 30 --seed 42
+lstm --window-length 30 --seed 43
+lstm --window-length 30 --seed 44
+lstm --window-length 30 --seed 45
+lstm --window-length 30 --seed 46
+lstm --window-length 30 --seed 47
+lstm --window-length 30 --seed 48
+lstm --window-length 30 --seed 49
+lstm --window-length 30 --seed 50
+lstm --window-length 30 --seed 51
+lstm --window-length 20 --seed 42
+lstm --window-length 20 --seed 43
+lstm --window-length 20 --seed 44
+lstm --window-length 20 --seed 45
+lstm --window-length 20 --seed 46
+lstm --window-length 20 --seed 47
+lstm --window-length 20 --seed 48
+lstm --window-length 20 --seed 49
+lstm --window-length 20 --seed 50
+lstm --window-length 20 --seed 51
+lstm --window-length 15 --seed 42
+lstm --window-length 15 --seed 43
+lstm --window-length 15 --seed 44
+lstm --window-length 15 --seed 45
+lstm --window-length 15 --seed 46
+lstm --window-length 15 --seed 47
+lstm --window-length 15 --seed 48
+lstm --window-length 15 --seed 49
+lstm --window-length 15 --seed 50
+lstm --window-length 15 --seed 51
+qrc --reservoir random --window-length 30 --seed 42
+qrc --reservoir random --window-length 30 --seed 43
+qrc --reservoir random --window-length 30 --seed 44
+qrc --reservoir random --window-length 30 --seed 45
+qrc --reservoir random --window-length 30 --seed 46
+qrc --reservoir random --window-length 30 --seed 47
+qrc --reservoir random --window-length 30 --seed 48
+qrc --reservoir random --window-length 30 --seed 49
+qrc --reservoir random --window-length 30 --seed 50
+qrc --reservoir random --window-length 30 --seed 51
+qrc --reservoir tfim --window-length 30 --seed 42
+qrc --reservoir tfim --window-length 30 --seed 43
+qrc --reservoir tfim --window-length 30 --seed 44
+qrc --reservoir tfim --window-length 30 --seed 45
+qrc --reservoir tfim --window-length 30 --seed 46
+qrc --reservoir tfim --window-length 30 --seed 47
+qrc --reservoir tfim --window-length 30 --seed 48
+qrc --reservoir tfim --window-length 30 --seed 49
+qrc --reservoir tfim --window-length 30 --seed 50
+qrc --reservoir tfim --window-length 30 --seed 51
+qrc --reservoir native-exchange --window-length 30 --seed 42
+qrc --reservoir native-exchange --window-length 30 --seed 43
+qrc --reservoir native-exchange --window-length 30 --seed 44
+qrc --reservoir native-exchange --window-length 30 --seed 45
+qrc --reservoir native-exchange --window-length 30 --seed 46
+qrc --reservoir native-exchange --window-length 30 --seed 47
+qrc --reservoir native-exchange --window-length 30 --seed 48
+qrc --reservoir native-exchange --window-length 30 --seed 49
+qrc --reservoir native-exchange --window-length 30 --seed 50
+qrc --reservoir native-exchange --window-length 30 --seed 51
+lstm --window-length 10 --seed 42
+lstm --window-length 10 --seed 43
+lstm --window-length 10 --seed 44
+lstm --window-length 10 --seed 45
+lstm --window-length 10 --seed 46
+lstm --window-length 10 --seed 47
+lstm --window-length 10 --seed 48
+lstm --window-length 10 --seed 49
+lstm --window-length 10 --seed 50
+lstm --window-length 10 --seed 51
+qrc --reservoir random --window-length 20 --seed 42
+qrc --reservoir random --window-length 20 --seed 43
+qrc --reservoir random --window-length 20 --seed 44
+qrc --reservoir random --window-length 20 --seed 45
+qrc --reservoir random --window-length 20 --seed 46
+qrc --reservoir random --window-length 20 --seed 47
+qrc --reservoir random --window-length 20 --seed 48
+qrc --reservoir random --window-length 20 --seed 49
+qrc --reservoir random --window-length 20 --seed 50
+qrc --reservoir random --window-length 20 --seed 51
+qrc --reservoir tfim --window-length 20 --seed 42
+qrc --reservoir tfim --window-length 20 --seed 43
+qrc --reservoir tfim --window-length 20 --seed 44
+qrc --reservoir tfim --window-length 20 --seed 45
+qrc --reservoir tfim --window-length 20 --seed 46
+qrc --reservoir tfim --window-length 20 --seed 47
+qrc --reservoir tfim --window-length 20 --seed 48
+qrc --reservoir tfim --window-length 20 --seed 49
+qrc --reservoir tfim --window-length 20 --seed 50
+qrc --reservoir tfim --window-length 20 --seed 51
+qrc --reservoir native-exchange --window-length 20 --seed 42
+qrc --reservoir native-exchange --window-length 20 --seed 43
+qrc --reservoir native-exchange --window-length 20 --seed 44
+qrc --reservoir native-exchange --window-length 20 --seed 45
+qrc --reservoir native-exchange --window-length 20 --seed 46
+qrc --reservoir native-exchange --window-length 20 --seed 47
+qrc --reservoir native-exchange --window-length 20 --seed 48
+qrc --reservoir native-exchange --window-length 20 --seed 49
+qrc --reservoir native-exchange --window-length 20 --seed 50
+qrc --reservoir native-exchange --window-length 20 --seed 51
+qrc --reservoir random --window-length 15 --seed 42 --save-scores
+qrc --reservoir random --window-length 15 --seed 43 --save-scores
+qrc --reservoir random --window-length 15 --seed 44 --save-scores
+qrc --reservoir random --window-length 15 --seed 45 --save-scores
+qrc --reservoir random --window-length 15 --seed 46 --save-scores
+qrc --reservoir random --window-length 15 --seed 47 --save-scores
+qrc --reservoir random --window-length 15 --seed 48 --save-scores
+qrc --reservoir random --window-length 15 --seed 49 --save-scores
+qrc --reservoir random --window-length 15 --seed 50 --save-scores
+qrc --reservoir random --window-length 15 --seed 51 --save-scores
+qrc --reservoir tfim --window-length 15 --seed 42 --save-scores
+qrc --reservoir tfim --window-length 15 --seed 43 --save-scores
+qrc --reservoir tfim --window-length 15 --seed 44 --save-scores
+qrc --reservoir tfim --window-length 15 --seed 45 --save-scores
+qrc --reservoir tfim --window-length 15 --seed 46 --save-scores
+qrc --reservoir tfim --window-length 15 --seed 47 --save-scores
+qrc --reservoir tfim --window-length 15 --seed 48 --save-scores
+qrc --reservoir tfim --window-length 15 --seed 49 --save-scores
+qrc --reservoir tfim --window-length 15 --seed 50 --save-scores
+qrc --reservoir tfim --window-length 15 --seed 51 --save-scores
+qrc --reservoir native-exchange --window-length 15 --seed 42 --save-scores
+qrc --reservoir native-exchange --window-length 15 --seed 43 --save-scores
+qrc --reservoir native-exchange --window-length 15 --seed 44 --save-scores
+qrc --reservoir native-exchange --window-length 15 --seed 45 --save-scores
+qrc --reservoir native-exchange --window-length 15 --seed 46 --save-scores
+qrc --reservoir native-exchange --window-length 15 --seed 47 --save-scores
+qrc --reservoir native-exchange --window-length 15 --seed 48 --save-scores
+qrc --reservoir native-exchange --window-length 15 --seed 49 --save-scores
+qrc --reservoir native-exchange --window-length 15 --seed 50 --save-scores
+qrc --reservoir native-exchange --window-length 15 --seed 51 --save-scores
+lstm --window-length 5 --seed 42
+lstm --window-length 5 --seed 43
+lstm --window-length 5 --seed 44
+lstm --window-length 5 --seed 45
+lstm --window-length 5 --seed 46
+lstm --window-length 5 --seed 47
+lstm --window-length 5 --seed 48
+lstm --window-length 5 --seed 49
+lstm --window-length 5 --seed 50
+lstm --window-length 5 --seed 51
+qrc --reservoir random --window-length 10 --seed 42
+qrc --reservoir random --window-length 10 --seed 43
+qrc --reservoir random --window-length 10 --seed 44
+qrc --reservoir random --window-length 10 --seed 45
+qrc --reservoir random --window-length 10 --seed 46
+qrc --reservoir random --window-length 10 --seed 47
+qrc --reservoir random --window-length 10 --seed 48
+qrc --reservoir random --window-length 10 --seed 49
+qrc --reservoir random --window-length 10 --seed 50
+qrc --reservoir random --window-length 10 --seed 51
+qrc --reservoir tfim --window-length 10 --seed 42
+qrc --reservoir tfim --window-length 10 --seed 43
+qrc --reservoir tfim --window-length 10 --seed 44
+qrc --reservoir tfim --window-length 10 --seed 45
+qrc --reservoir tfim --window-length 10 --seed 46
+qrc --reservoir tfim --window-length 10 --seed 47
+qrc --reservoir tfim --window-length 10 --seed 48
+qrc --reservoir tfim --window-length 10 --seed 49
+qrc --reservoir tfim --window-length 10 --seed 50
+qrc --reservoir tfim --window-length 10 --seed 51
+qrc --reservoir native-exchange --window-length 10 --seed 42
+qrc --reservoir native-exchange --window-length 10 --seed 43
+qrc --reservoir native-exchange --window-length 10 --seed 44
+qrc --reservoir native-exchange --window-length 10 --seed 45
+qrc --reservoir native-exchange --window-length 10 --seed 46
+qrc --reservoir native-exchange --window-length 10 --seed 47
+qrc --reservoir native-exchange --window-length 10 --seed 48
+qrc --reservoir native-exchange --window-length 10 --seed 49
+qrc --reservoir native-exchange --window-length 10 --seed 50
+qrc --reservoir native-exchange --window-length 10 --seed 51
+lstm --window-length 3 --seed 42
+lstm --window-length 3 --seed 43
+lstm --window-length 3 --seed 44
+lstm --window-length 3 --seed 45
+lstm --window-length 3 --seed 46
+lstm --window-length 3 --seed 47
+lstm --window-length 3 --seed 48
+lstm --window-length 3 --seed 49
+lstm --window-length 3 --seed 50
+lstm --window-length 3 --seed 51
+qrc --reservoir random --window-length 5 --seed 42
+qrc --reservoir random --window-length 5 --seed 43
+qrc --reservoir random --window-length 5 --seed 44
+qrc --reservoir random --window-length 5 --seed 45
+qrc --reservoir random --window-length 5 --seed 46
+qrc --reservoir random --window-length 5 --seed 47
+qrc --reservoir random --window-length 5 --seed 48
+qrc --reservoir random --window-length 5 --seed 49
+qrc --reservoir random --window-length 5 --seed 50
+qrc --reservoir random --window-length 5 --seed 51
+qrc --reservoir tfim --window-length 5 --seed 42
+qrc --reservoir tfim --window-length 5 --seed 43
+qrc --reservoir tfim --window-length 5 --seed 44
+qrc --reservoir tfim --window-length 5 --seed 45
+qrc --reservoir tfim --window-length 5 --seed 46
+qrc --reservoir tfim --window-length 5 --seed 47
+qrc --reservoir tfim --window-length 5 --seed 48
+qrc --reservoir tfim --window-length 5 --seed 49
+qrc --reservoir tfim --window-length 5 --seed 50
+qrc --reservoir tfim --window-length 5 --seed 51
+qrc --reservoir native-exchange --window-length 5 --seed 42
+qrc --reservoir native-exchange --window-length 5 --seed 43
+qrc --reservoir native-exchange --window-length 5 --seed 44
+qrc --reservoir native-exchange --window-length 5 --seed 45
+qrc --reservoir native-exchange --window-length 5 --seed 46
+qrc --reservoir native-exchange --window-length 5 --seed 47
+qrc --reservoir native-exchange --window-length 5 --seed 48
+qrc --reservoir native-exchange --window-length 5 --seed 49
+qrc --reservoir native-exchange --window-length 5 --seed 50
+qrc --reservoir native-exchange --window-length 5 --seed 51
+esn --window-length 30 --seed 42 --n-units 7
+esn --window-length 30 --seed 43 --n-units 7
+esn --window-length 30 --seed 44 --n-units 7
+esn --window-length 30 --seed 45 --n-units 7
+esn --window-length 30 --seed 46 --n-units 7
+esn --window-length 30 --seed 47 --n-units 7
+esn --window-length 30 --seed 48 --n-units 7
+esn --window-length 30 --seed 49 --n-units 7
+esn --window-length 30 --seed 50 --n-units 7
+esn --window-length 30 --seed 51 --n-units 7
+esn --window-length 30 --seed 42 --n-units 45
+esn --window-length 30 --seed 43 --n-units 45
+esn --window-length 30 --seed 44 --n-units 45
+esn --window-length 30 --seed 45 --n-units 45
+esn --window-length 30 --seed 46 --n-units 45
+esn --window-length 30 --seed 47 --n-units 45
+esn --window-length 30 --seed 48 --n-units 45
+esn --window-length 30 --seed 49 --n-units 45
+esn --window-length 30 --seed 50 --n-units 45
+esn --window-length 30 --seed 51 --n-units 45
+qrc --reservoir random --window-length 3 --seed 42
+qrc --reservoir random --window-length 3 --seed 43
+qrc --reservoir random --window-length 3 --seed 44
+qrc --reservoir random --window-length 3 --seed 45
+qrc --reservoir random --window-length 3 --seed 46
+qrc --reservoir random --window-length 3 --seed 47
+qrc --reservoir random --window-length 3 --seed 48
+qrc --reservoir random --window-length 3 --seed 49
+qrc --reservoir random --window-length 3 --seed 50
+qrc --reservoir random --window-length 3 --seed 51
+qrc --reservoir tfim --window-length 3 --seed 42
+qrc --reservoir tfim --window-length 3 --seed 43
+qrc --reservoir tfim --window-length 3 --seed 44
+qrc --reservoir tfim --window-length 3 --seed 45
+qrc --reservoir tfim --window-length 3 --seed 46
+qrc --reservoir tfim --window-length 3 --seed 47
+qrc --reservoir tfim --window-length 3 --seed 48
+qrc --reservoir tfim --window-length 3 --seed 49
+qrc --reservoir tfim --window-length 3 --seed 50
+qrc --reservoir tfim --window-length 3 --seed 51
+qrc --reservoir native-exchange --window-length 3 --seed 42
+qrc --reservoir native-exchange --window-length 3 --seed 43
+qrc --reservoir native-exchange --window-length 3 --seed 44
+qrc --reservoir native-exchange --window-length 3 --seed 45
+qrc --reservoir native-exchange --window-length 3 --seed 46
+qrc --reservoir native-exchange --window-length 3 --seed 47
+qrc --reservoir native-exchange --window-length 3 --seed 48
+qrc --reservoir native-exchange --window-length 3 --seed 49
+qrc --reservoir native-exchange --window-length 3 --seed 50
+qrc --reservoir native-exchange --window-length 3 --seed 51
+esn --window-length 20 --seed 42 --n-units 7
+esn --window-length 20 --seed 43 --n-units 7
+esn --window-length 20 --seed 44 --n-units 7
+esn --window-length 20 --seed 45 --n-units 7
+esn --window-length 20 --seed 46 --n-units 7
+esn --window-length 20 --seed 47 --n-units 7
+esn --window-length 20 --seed 48 --n-units 7
+esn --window-length 20 --seed 49 --n-units 7
+esn --window-length 20 --seed 50 --n-units 7
+esn --window-length 20 --seed 51 --n-units 7
+esn --window-length 20 --seed 42 --n-units 45
+esn --window-length 20 --seed 43 --n-units 45
+esn --window-length 20 --seed 44 --n-units 45
+esn --window-length 20 --seed 45 --n-units 45
+esn --window-length 20 --seed 46 --n-units 45
+esn --window-length 20 --seed 47 --n-units 45
+esn --window-length 20 --seed 48 --n-units 45
+esn --window-length 20 --seed 49 --n-units 45
+esn --window-length 20 --seed 50 --n-units 45
+esn --window-length 20 --seed 51 --n-units 45
+lstm --window-length 1 --seed 42
+lstm --window-length 1 --seed 43
+lstm --window-length 1 --seed 44
+lstm --window-length 1 --seed 45
+lstm --window-length 1 --seed 46
+lstm --window-length 1 --seed 47
+lstm --window-length 1 --seed 48
+lstm --window-length 1 --seed 49
+lstm --window-length 1 --seed 50
+lstm --window-length 1 --seed 51
+qrc --reservoir random --window-length 1 --seed 42
+qrc --reservoir random --window-length 1 --seed 43
+qrc --reservoir random --window-length 1 --seed 44
+qrc --reservoir random --window-length 1 --seed 45
+qrc --reservoir random --window-length 1 --seed 46
+qrc --reservoir random --window-length 1 --seed 47
+qrc --reservoir random --window-length 1 --seed 48
+qrc --reservoir random --window-length 1 --seed 49
+qrc --reservoir random --window-length 1 --seed 50
+qrc --reservoir random --window-length 1 --seed 51
+qrc --reservoir tfim --window-length 1 --seed 42
+qrc --reservoir tfim --window-length 1 --seed 43
+qrc --reservoir tfim --window-length 1 --seed 44
+qrc --reservoir tfim --window-length 1 --seed 45
+qrc --reservoir tfim --window-length 1 --seed 46
+qrc --reservoir tfim --window-length 1 --seed 47
+qrc --reservoir tfim --window-length 1 --seed 48
+qrc --reservoir tfim --window-length 1 --seed 49
+qrc --reservoir tfim --window-length 1 --seed 50
+qrc --reservoir tfim --window-length 1 --seed 51
+qrc --reservoir native-exchange --window-length 1 --seed 42
+qrc --reservoir native-exchange --window-length 1 --seed 43
+qrc --reservoir native-exchange --window-length 1 --seed 44
+qrc --reservoir native-exchange --window-length 1 --seed 45
+qrc --reservoir native-exchange --window-length 1 --seed 46
+qrc --reservoir native-exchange --window-length 1 --seed 47
+qrc --reservoir native-exchange --window-length 1 --seed 48
+qrc --reservoir native-exchange --window-length 1 --seed 49
+qrc --reservoir native-exchange --window-length 1 --seed 50
+qrc --reservoir native-exchange --window-length 1 --seed 51
+esn --window-length 15 --seed 42 --n-units 7
+esn --window-length 15 --seed 43 --n-units 7
+esn --window-length 15 --seed 44 --n-units 7
+esn --window-length 15 --seed 45 --n-units 7
+esn --window-length 15 --seed 46 --n-units 7
+esn --window-length 15 --seed 47 --n-units 7
+esn --window-length 15 --seed 48 --n-units 7
+esn --window-length 15 --seed 49 --n-units 7
+esn --window-length 15 --seed 50 --n-units 7
+esn --window-length 15 --seed 51 --n-units 7
+esn --window-length 15 --seed 42 --n-units 45
+esn --window-length 15 --seed 43 --n-units 45
+esn --window-length 15 --seed 44 --n-units 45
+esn --window-length 15 --seed 45 --n-units 45
+esn --window-length 15 --seed 46 --n-units 45
+esn --window-length 15 --seed 47 --n-units 45
+esn --window-length 15 --seed 48 --n-units 45
+esn --window-length 15 --seed 49 --n-units 45
+esn --window-length 15 --seed 50 --n-units 45
+esn --window-length 15 --seed 51 --n-units 45
+baseline --window-length 1
+baseline --window-length 3
+baseline --window-length 5
+baseline --window-length 10
+baseline --window-length 15
+baseline --window-length 20
+baseline --window-length 30
+esn --window-length 10 --seed 42 --n-units 7
+esn --window-length 10 --seed 43 --n-units 7
+esn --window-length 10 --seed 44 --n-units 7
+esn --window-length 10 --seed 45 --n-units 7
+esn --window-length 10 --seed 46 --n-units 7
+esn --window-length 10 --seed 47 --n-units 7
+esn --window-length 10 --seed 48 --n-units 7
+esn --window-length 10 --seed 49 --n-units 7
+esn --window-length 10 --seed 50 --n-units 7
+esn --window-length 10 --seed 51 --n-units 7
+esn --window-length 10 --seed 42 --n-units 45
+esn --window-length 10 --seed 43 --n-units 45
+esn --window-length 10 --seed 44 --n-units 45
+esn --window-length 10 --seed 45 --n-units 45
+esn --window-length 10 --seed 46 --n-units 45
+esn --window-length 10 --seed 47 --n-units 45
+esn --window-length 10 --seed 48 --n-units 45
+esn --window-length 10 --seed 49 --n-units 45
+esn --window-length 10 --seed 50 --n-units 45
+esn --window-length 10 --seed 51 --n-units 45
+esn --window-length 5 --seed 42 --n-units 7
+esn --window-length 5 --seed 43 --n-units 7
+esn --window-length 5 --seed 44 --n-units 7
+esn --window-length 5 --seed 45 --n-units 7
+esn --window-length 5 --seed 46 --n-units 7
+esn --window-length 5 --seed 47 --n-units 7
+esn --window-length 5 --seed 48 --n-units 7
+esn --window-length 5 --seed 49 --n-units 7
+esn --window-length 5 --seed 50 --n-units 7
+esn --window-length 5 --seed 51 --n-units 7
+esn --window-length 5 --seed 42 --n-units 45
+esn --window-length 5 --seed 43 --n-units 45
+esn --window-length 5 --seed 44 --n-units 45
+esn --window-length 5 --seed 45 --n-units 45
+esn --window-length 5 --seed 46 --n-units 45
+esn --window-length 5 --seed 47 --n-units 45
+esn --window-length 5 --seed 48 --n-units 45
+esn --window-length 5 --seed 49 --n-units 45
+esn --window-length 5 --seed 50 --n-units 45
+esn --window-length 5 --seed 51 --n-units 45
+esn --window-length 3 --seed 42 --n-units 7
+esn --window-length 3 --seed 43 --n-units 7
+esn --window-length 3 --seed 44 --n-units 7
+esn --window-length 3 --seed 45 --n-units 7
+esn --window-length 3 --seed 46 --n-units 7
+esn --window-length 3 --seed 47 --n-units 7
+esn --window-length 3 --seed 48 --n-units 7
+esn --window-length 3 --seed 49 --n-units 7
+esn --window-length 3 --seed 50 --n-units 7
+esn --window-length 3 --seed 51 --n-units 7
+esn --window-length 3 --seed 42 --n-units 45
+esn --window-length 3 --seed 43 --n-units 45
+esn --window-length 3 --seed 44 --n-units 45
+esn --window-length 3 --seed 45 --n-units 45
+esn --window-length 3 --seed 46 --n-units 45
+esn --window-length 3 --seed 47 --n-units 45
+esn --window-length 3 --seed 48 --n-units 45
+esn --window-length 3 --seed 49 --n-units 45
+esn --window-length 3 --seed 50 --n-units 45
+esn --window-length 3 --seed 51 --n-units 45
+esn --window-length 1 --seed 42 --n-units 7
+esn --window-length 1 --seed 43 --n-units 7
+esn --window-length 1 --seed 44 --n-units 7
+esn --window-length 1 --seed 45 --n-units 7
+esn --window-length 1 --seed 46 --n-units 7
+esn --window-length 1 --seed 47 --n-units 7
+esn --window-length 1 --seed 48 --n-units 7
+esn --window-length 1 --seed 49 --n-units 7
+esn --window-length 1 --seed 50 --n-units 7
+esn --window-length 1 --seed 51 --n-units 7
+esn --window-length 1 --seed 42 --n-units 45
+esn --window-length 1 --seed 43 --n-units 45
+esn --window-length 1 --seed 44 --n-units 45
+esn --window-length 1 --seed 45 --n-units 45
+esn --window-length 1 --seed 46 --n-units 45
+esn --window-length 1 --seed 47 --n-units 45
+esn --window-length 1 --seed 48 --n-units 45
+esn --window-length 1 --seed 49 --n-units 45
+esn --window-length 1 --seed 50 --n-units 45
+esn --window-length 1 --seed 51 --n-units 45
