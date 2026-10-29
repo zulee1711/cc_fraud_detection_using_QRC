@@ -187,6 +187,7 @@ state after its last transaction is the readout input:
 | -------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------- |
 | `--backend`          | `estimator-exact`  | `estimator-exact`, `gaussian`, `shots`, `numpy` or `spinpulse` (see below)                                                |
 | `--precision`        | `0.05`             | Target standard error per expectation value (`gaussian` / `shots` / `spinpulse`; `0` is exact, `spinpulse` only)          |
+| `--simulator`        | `aer`              | What computes the exact values `gaussian` adds noise to: `aer` or `numpy` (same features, much faster)                    |
 | `--n-input-qubits`   | number of features | Input qubits. With fewer qubits than features, dense angle encoding is used (see below)                                   |
 | `--n-mem-qubits`     | `2`                | Memory qubits                                                                                                             |
 | `--hamiltonian`      | `random`           | `random`, `tfim`, `tfim-longitudinal`, `tfim-native` or `native-exchange`                                                 |
@@ -206,6 +207,8 @@ The backends:
 
 - `estimator-exact` (default): exact, noiseless simulation with the Qiskit Aer Estimator. Windows are sent to Aer in batches.
 - `gaussian`: exact expectation values plus Gaussian noise of width `--precision`. This is a cheap stand-in for shot noise.
+  With `--simulator numpy` the exact values come from the `numpy` backend instead of Aer. The noise is drawn the same
+  way, so the features are the same up to machine precision, 4–6× faster on 4–5 qubits.
 - `shots`: real shot sampling with about `1/precision²` shots.
 - `numpy`: exact, noiseless batched simulation in plain NumPy. Same results as `estimator-exact`, but much faster
   for small registers (up to ~8 qubits).
@@ -291,7 +294,7 @@ objective at once. The test split is never used for selection.
 | `qubits`              | Input + memory qubits                                                                                                             |
 | `depth`               | Depth of the circuit for one window (L × encoding + reservoir), transpiled to `rz`/`sx`/`x`/`cz` on a linear chain of qubits     |
 | `bases`               | Measurement bases: observables that can be read from the same shots count once (`Z` and `Z+ZZ`: 1, `XYZ`: 3)                     |
-| `shots`               | Shots per basis, ≈ 1/precision². Searched over 100 … 10,000. Needs `--backend gaussian`, `shots` or `spinpulse`               |
+| `shots`               | Shots per basis, ≈ 1/precision². Searched over ≈10³ … 10⁵. Needs `--backend gaussian`, `shots` or `spinpulse`               |
 | `wall_time`           | Seconds to simulate the reservoir over all splits (machine-dependent)                                                            |
 
 By default all costs are objectives, except `shots` with an exact backend. Pass a subset with
@@ -314,16 +317,17 @@ The default is the value `experiments.cli qrc` uses when the option is not given
 | Parameter                       | Values searched                                                               | Default (`cli qrc`)                    |
 | ------------------------------- | ----------------------------------------------------------------------------- | -------------------------------------- |
 | encoding                        | `angle`, `dense`, `reupload` (`--encodings`)                                  | `auto` (angle with one qubit per feature) |
-| input qubits                    | dense: ⌈F/2⌉ … F−1; angle / reupload: F … F+2 (F = number of features)        | F                                      |
-| memory qubits                   | 1 … 4, with input + memory ≤ `--max-qubits` (default 12)                      | 2                                      |
+| input qubits                    | dense: ⌈F/2⌉ … F−1; angle / reupload: F (F = number of features)              | F                                      |
+| memory qubits                   | 2 … 5, with input + memory ≤ `--max-qubits` (default 12)                      | 2                                      |
 | encoding layers                 | 2 … 3 (reupload only)                                                          | 1                                      |
-| encoding scaling                | π/4 … 2π                                                                      | π                                      |
+| encoding scaling                | π/4 … π (above π, two different values can give the same state)               | π                                      |
 | reservoir                       | `random` or a Hamiltonian (`--hamiltonians`)                                  | `random`                               |
-| depth, entangler                | 1 … 4, `cx` / `cry`; random circuit only                                      | 2, `cx`                                |
+| depth, entangler                | 1 … 6, `cx` / `cry`; random circuit only                                      | 2, `cx`                                |
 | topology, evolution time        | `--topologies`, 0.1 … 10 (log); Hamiltonians only                             | `linear`, 1.0                          |
-| observables                     | `Z`, `Z+ZZ`, `XYZ`, `Z+ZZ-all`                                                | `Z`                                    |
+| Trotter steps                   | 2 … 3; Hamiltonians only (1 step makes reset `tfim` blind to u → 1−u)          | 2                                      |
+| observables                     | `Z`, `Z+ZZ`, `XYZ`, `XYZ+XYZ-2body`                                           | `Z`                                    |
 | readout `alpha`                 | 1e-1 … 1e5 (log)                                                              | 1.0                                    |
-| precision                       | 0.1, 0.05, 0.02, 0.01 (≈100 … 10,000 shots); only with the `shots` objective  | 0.05 (≈400 shots)                      |
+| precision                       | 0.03, 0.01, 0.003 (≈10³, 10⁴, 10⁵ shots); only with the `shots` objective     | 0.05 (≈400 shots)                      |
 
 Parts of each reservoir are random but fixed: the gate angles of the random circuit and the
 couplings of the Hamiltonians. The seed picks that random draw. `--seeds 1 2 3` runs every trial
@@ -334,8 +338,12 @@ With the `shots` objective, the precision is searched too.
 
 Tuner options: `--n-trials`, `--timeout`, `--study-name`, `--output-dir` (default `results/tune`),
 `--storage`, `--metric`, `--objectives`, `--seeds`, `--max-qubits`, `--encodings`, `--hamiltonians`,
-`--topologies` and `--sampler-seed`. Every other option goes to `qrc` unchanged and is fixed for the
-whole study (data, feature set, window length, backend, ...). Passing an option the search sets
+`--topologies`, `--sampler-seed` and `--n-jobs`. Every other option goes to `qrc` unchanged and is fixed for the
+whole study (data, feature set, window length, backend, ...).
+
+`--n-jobs N` runs N trials at once, in threads that share the prepared data (so memory grows little).
+It speeds up the `numpy` backend and `gaussian` with `--simulator numpy` (about 3.6× with 6 threads on a
+6-core laptop); the Aer backends (`estimator-exact`, `gaussian`, `shots`) gain nothing from it. Use at most one thread per physical core. Passing an option the search sets
 (e.g. `--n-mem-qubits`) is an error.
 
 A study is saved in `results/tune/<study-name>/`:

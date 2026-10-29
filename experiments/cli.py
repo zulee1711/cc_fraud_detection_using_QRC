@@ -322,11 +322,16 @@ def print_data_summary(data):
 # --------------------------------------------------------------------------- models
 
 
-def make_backend(name, precision, seed, reset_inputs=False, spinpulse=None):
+def make_backend(name, precision, seed, reset_inputs=False, spinpulse=None, simulator="aer"):
+    if simulator != "aer" and name != "gaussian":
+        raise ValueError(f"--simulator {simulator} only applies to --backend gaussian")
     if name == "estimator-exact":
         return EstimatorBackend(reset_inputs=reset_inputs)
     if name == "numpy":
         return NumpyBackend(reset_inputs=reset_inputs)
+    if name == "gaussian" and simulator == "numpy":
+        # same values as Aer's (exact + the same Gaussian draws), much faster on few qubits
+        return NumpyBackend(reset_inputs=reset_inputs, precision=precision, seed=seed)
     if name == "spinpulse":
         config = spinpulse or SpinPulseConfig(precision=precision, seed=seed)
         return SpinPulseBackend(config, reset_inputs=reset_inputs)
@@ -462,6 +467,7 @@ def build_protocol(args):
         args.seed,
         args.reset_inputs,
         spinpulse_config(args) if args.backend == "spinpulse" else None,
+        args.simulator,
     )
     protocol = QRCProtocol(encoder, reservoir, observables, backend)
     reservoir_info = {
@@ -924,6 +930,13 @@ def build_parser():
         default=0.05,
         help="target std. error of each expectation value (gaussian/shots/spinpulse; "
         "shots ~ 1/precision**2; 0 = exact, spinpulse only)",
+    )
+    qrc_parser.add_argument(
+        "--simulator",
+        choices=("aer", "numpy"),
+        default="aer",
+        help="computes the exact values the gaussian backend adds noise to. 'numpy' gives "
+        "the same features as 'aer' (same noise draws), much faster up to ~8 qubits",
     )
     qrc_parser.add_argument(
         "--n-input-qubits",

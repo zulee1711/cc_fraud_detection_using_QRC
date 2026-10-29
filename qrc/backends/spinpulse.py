@@ -234,6 +234,7 @@ class SpinPulseBackend(Backend):
         self._timeline = None
         self.last_stderr = None     # stores uncertainty estimates from different noise realizations
         self._calls = 0 # each run_batch call draws its own noise
+        self._noise_seed = config.seed if config.seed is not None else int(np.random.SeedSequence().generate_state(1)[0])
 
     def _hardware_specs(self, n_qubits: int) -> "HardwareSpecs":
         c = self.config
@@ -376,14 +377,10 @@ class SpinPulseBackend(Backend):
         values = windows[..., np.arange(input_width) % num_features]
         tl = self._timeline_for(encoder, reservoir, input_width)
         c = self.config
-
         window_duration = window_length * tl.step_duration
-        # Every call (e.g. the train, validation and test splits) draws its own noise, reset
-        # outcomes and shots; the first call uses the seed itself, so runs stay reproducible.
-        seed = None if c.seed is None else c.seed + NOISE_CALL_STRIDE * self._calls
+        env = self._environment(tl.specs, window_duration, self._noise_seed)
+        rng = np.random.default_rng(self._noise_seed + NOISE_CALL_STRIDE * self._calls)
         self._calls += 1
-        env = self._environment(tl.specs, window_duration, seed)
-        rng = np.random.default_rng(seed)
         # With input reset, small registers are propagated as density matrices, so the reset is
         # exact; larger ones sample the reset outcome per realization (quantum trajectories).
         exact_reset = self.reset_inputs and self._exact_reset(tl.n_qubits)

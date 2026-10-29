@@ -6,7 +6,9 @@ import pytest
 from qrc.decision import (
     card_precision_top_k,
     card_precision_top_ks,
+    select_threshold_max_recall,
     select_threshold_min_fp,
+    select_thresholds_max_recall,
     select_thresholds_min_fp,
 )
 
@@ -366,3 +368,43 @@ def test_card_precision_validation():
             ["2026-01-01"],
             top_ks=[1, 0, 5],
         )
+
+#%%
+def test_max_recall_threshold_respects_the_false_positive_budget():
+    # Five negatives: a 20 % budget allows one false positive. Threshold 0.6 catches
+    # both frauds with one false positive (0.7); 0.5 would add a second one.
+    y = np.array([1, 1, 0, 0, 0, 0, 0])
+    scores = np.array([0.9, 0.6, 0.7, 0.5, 0.1, 0.2, 0.3])
+
+    assert select_threshold_max_recall(y, scores, max_fpr=0.2) == pytest.approx(0.6)
+    # no false positive allowed: only the fraud above every negative is caught
+    assert select_threshold_max_recall(y, scores, max_fpr=0.1) == pytest.approx(0.9)
+
+#%%
+def test_max_recall_threshold_prefers_fewer_false_positives_at_equal_recall():
+    # 0.6 and 0.55 have the same recall; 0.55 adds a false positive (0.58)
+    y = np.array([1, 1, 0, 0, 0, 0])
+    scores = np.array([0.9, 0.6, 0.58, 0.1, 0.2, 0.3])
+
+    assert select_threshold_max_recall(y, scores, max_fpr=0.5) == pytest.approx(0.6)
+
+#%%
+def test_max_recall_thresholds_match_brute_force():
+    rng = np.random.default_rng(0)
+    for _ in range(50):
+        y = rng.integers(0, 2, 60)
+        y[:2] = (1, 0)
+        scores = np.round(rng.random(60), 1)  # many ties
+        budgets = [0.05, 0.1, 0.3, 1.0]
+        selected = select_thresholds_max_recall(y, scores, max_fprs=budgets)
+        for budget in budgets:
+            best = None
+            for t in np.unique(scores):
+                pred = scores >= t
+                fp, tp = (pred & (y == 0)).sum(), (pred & (y == 1)).sum()
+                if fp <= budget * (y == 0).sum():
+                    key = (tp, -fp)
+                    if best is None or key > best[0]:
+                        best = (key, t)
+            expected = best[1] if best else np.inf
+            assert selected[budget] == pytest.approx(expected), budget

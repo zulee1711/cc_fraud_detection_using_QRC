@@ -1,0 +1,42 @@
+[
+ {
+  "model": "esn",
+  "L": 1,
+  "seed": 43,
+  "n_units": 45,
+  "metrics": {
+   "validation": {
+    "f1_score": 0.11734433480775774,
+    "precision": 0.06331321568717442,
+    "recall": 0.800406150275602,
+    "false_positive_rate": 0.4141604772920979,
+    "roc_auc": 0.8174717257199767,
+    "average_precision": 0.5870514486810718,
+    "matthews_corr_coef": 0.14108929450919286,
+    "balanced_accuracy": 0.6931228364917521,
+    "threshold_used": 0.01075392612374966,
+    "card_precision_top_k": 0.06648148148148147,
+    "average_precision_amount": 1.0,
+    "average_precision_terminal": 0.005441766624122698,
+    "average_precision_customer": 0.14577597826997937
+   },
+   "test": {
+    "f1_score": 0.12294460939899662,
+    "precision": 0.06645562614836296,
+    "recall": 0.8197706171490988,
+    "false_positive_rate": 0.41146051848454984,
+    "roc_auc": 0.832092887046586,
+    "average_precision": 0.6121389305084101,
+    "matthews_corr_coef": 0.15071586826240516,
+    "balanced_accuracy": 0.7041550493322745,
+    "threshold_used": 0.01075392612374966,
+    "card_precision_top_k": 0.06482142857142857,
+    "average_precision_amount": 1.0,
+    "average_precision_terminal": 0.005961189772768788,
+    "average_precision_customer": 0.15743498796298927
+   },
+   "reservoir_seconds": 0.7588640530000248
+  },
+  "run_dir": "results/2_fraud/cli_runs/esn45_L1/20261028_120004_602543_esn"
+ }
+]

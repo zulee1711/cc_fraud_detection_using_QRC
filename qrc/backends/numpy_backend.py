@@ -1,4 +1,6 @@
 """Exact batched simulation in plain NumPy, for small registers."""
+from typing import Optional
+
 import numpy as np
 from qiskit.circuit import ParameterExpression, ParameterVector
 from qiskit.quantum_info import Operator, PauliList
@@ -27,20 +29,36 @@ class NumpyBackend(Backend):
     faster than Aer for the 4-6 qubit registers used here and stops paying off around 9 qubits.
 
     Only encodings made of single-qubit rx/ry/rz gates are supported, each angle a linear function
-    of at most one input value (all encodings in ``qrc.encodings``). No noise, no sampling.
+    of at most one input value (all encodings in ``qrc.encodings``). No circuit noise.
 
     Args:
         reset_inputs (bool): reset the input qubits to |0> before each encoding step after the
             first, as in ``EstimatorBackend``.
         max_chunk_bytes (int): memory budget for the states of one chunk of windows; windows are
             processed in chunks that fit in it.
+        precision (float): standard deviation of the Gaussian noise added to every expectation
+            value, ``0.0`` for exact values. The noise is drawn exactly as in
+            ``EstimatorBackend(sampling="gaussian")``, so with the same seed both give the same
+            features up to machine precision.
+        seed (int, optional): seed of the noise, for reproducible results.
     """
 
-    def __init__(self, reset_inputs: bool = False, max_chunk_bytes: int = 256 * 2**20):
+    def __init__(
+        self,
+        reset_inputs: bool = False,
+        max_chunk_bytes: int = 256 * 2**20,
+        precision: float = 0.0,
+        seed: Optional[int] = None,
+    ):
         if max_chunk_bytes < 1:
             raise ValueError(f"max_chunk_bytes must be positive, got {max_chunk_bytes}")
+        if precision < 0:
+            raise ValueError("precision must be non-negative")
         self.reset_inputs = reset_inputs
         self.max_chunk_bytes = max_chunk_bytes
+        self.precision = precision
+        # one stream for the whole lifetime of the backend: every call draws new noise
+        self._rng = np.random.default_rng(seed)
 
     def run_batch(
         self,
@@ -74,7 +92,10 @@ class NumpyBackend(Backend):
             else:
                 psi = self._statevectors(x, gates, U, encoder.num_qubits)
                 out.append(np.einsum("ma,pab,mb->mp", psi.conj(), P, psi).real)
-        return np.concatenate(out)
+        evs = np.concatenate(out)
+        if self.precision > 0:
+            evs = evs + self._rng.normal(0.0, self.precision, evs.shape)
+        return evs
 
     @staticmethod
     def _step_unitaries(x_t, gates, U, num_input_qubits):

@@ -231,3 +231,25 @@ def test_numpy_backend_empty_input_and_invalid_arguments(setup):
     assert NumpyBackend().run_batch(windows[:0], encoder, reservoir, observables).shape == (0, len(observables))
     with pytest.raises(ValueError):
         NumpyBackend(max_chunk_bytes=0)
+    with pytest.raises(ValueError):
+        NumpyBackend(precision=-0.1)
+
+
+@pytest.mark.parametrize("reset_inputs", [False, True])
+def test_numpy_gaussian_matches_estimator_gaussian(reset_inputs):
+    """Same exact values and the same noise draws, call after call (one call per split)."""
+    reservoir = RandomCircuitReservoir(1, 3, rng=0)
+    encoder, observables = AngleEncoding(1), build_observables("XYZ+XYZ-2body", 4)
+    rng = np.random.default_rng(5)
+    splits = [rng.uniform(0, 1, (n, WINDOW_LENGTH, 1)) for n in (9, 4, 6)]
+    aer = EstimatorBackend(precision=0.01, seed=7, sampling="gaussian", reset_inputs=reset_inputs)
+    numpy = NumpyBackend(reset_inputs=reset_inputs, precision=0.01, seed=7)
+    for windows in splits:
+        expected = aer.run_batch(windows, encoder, reservoir, observables)
+        result = numpy.run_batch(windows, encoder, reservoir, observables)
+        np.testing.assert_allclose(result, expected, atol=1e-10)
+    # the noise is really there
+    exact = NumpyBackend(reset_inputs=reset_inputs).run_batch(splits[0], encoder, reservoir, observables)
+    noisy = NumpyBackend(reset_inputs=reset_inputs, precision=0.01, seed=7).run_batch(
+        splits[0], encoder, reservoir, observables)
+    assert 0.005 < np.std(noisy - exact) < 0.02

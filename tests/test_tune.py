@@ -1,6 +1,7 @@
 """Tests for the Optuna hyperparameter search, on the smallest simulation preset."""
 
 import csv
+import math
 import json
 
 import numpy as np
@@ -33,6 +34,7 @@ def test_suggested_params_are_valid_qrc_configurations():
         assert (params["encoding_layers"] > 1) == (params["encoding"] == "reupload")
         assert ("depth" in params) == (params["hamiltonian"] == "random")
         assert ("evolution_time" in params) == (params["hamiltonian"] != "random")
+        assert params.get("trotter_steps", 2) >= 2
 
         # and the qrc CLI accepts it
         args = cli.build_parser().parse_args(["qrc", *tune.cli_flags(params)])
@@ -40,9 +42,9 @@ def test_suggested_params_are_valid_qrc_configurations():
 
 
 def test_infeasible_encodings_are_dropped():
-    # 7 features: angle needs 7 input + 1 memory qubit, dense only 4 + 1
+    # 7 features: angle needs 7 input + 2 memory qubits, dense only 4 + 2
     assert tune.feasible_encodings(tune.ENCODINGS, 7, 6) == ["dense"]
-    assert tune.feasible_encodings(tune.ENCODINGS, 7, 8) == list(tune.ENCODINGS)
+    assert tune.feasible_encodings(tune.ENCODINGS, 7, 9) == list(tune.ENCODINGS)
 
 
 def test_study_runs_saves_and_resumes(tmp_path):
@@ -113,7 +115,7 @@ def test_shots_objective_searches_precision(tmp_path):
     )
     (trial,) = study.trials
     assert trial.params["precision"] in tune.PRECISIONS
-    assert trial.values[1] == trial.user_attrs["shots"] == round(trial.params["precision"] ** -2)
+    assert trial.values[1] == trial.user_attrs["shots"] == math.ceil(trial.params["precision"] ** -2)
 
 
 def test_shots_objective_needs_a_sampled_backend(tmp_path):
@@ -190,3 +192,41 @@ def test_qrc_cli_resolves_encoding(monkeypatch, flags, encoding):
     assert reservoir_info["encoding"] == encoding
     assert reservoir_info["evolution_time"] == 0.5
     assert captured[0][1].time == 0.5
+
+
+def test_category_metric_without_such_frauds_is_refused(tmp_path):
+    """The small preset has no customer frauds in validation, so customer AP is undefined."""
+    argv = ["--output-dir", str(tmp_path), "--size", "small", "--window-length", "2"]
+    with pytest.raises(SystemExit, match="no customer frauds"):
+        tune.main([*argv, "--metric", "average_precision_customer"])
+    # the refused study is not kept, so a corrected rerun under the same name is not blocked
+    assert not optuna.get_all_study_summaries(f"sqlite:///{tmp_path / 'qrc' / 'study.db'}")
+
+
+def test_trials_run_in_parallel_threads(tmp_path):
+    study = tune.main(
+        [
+            "--n-trials",
+            "2",
+            "--n-jobs",
+            "2",
+            "--max-qubits",
+            "7",
+            "--encodings",
+            "dense",
+            "--hamiltonians",
+            "random",
+            "--output-dir",
+            str(tmp_path),
+            "--size",
+            "small",
+            "--backend",
+            "numpy",
+        ]
+    )
+    states = [trial.state for trial in study.trials]
+    assert states == [optuna.trial.TrialState.COMPLETE] * 2
+    run_dirs = [d for trial in study.trials for d in trial.user_attrs["run_dirs"]]
+    assert len(set(run_dirs)) == 2
+    with open(tmp_path / "qrc" / "runs" / "summary.csv", newline="") as f:
+        assert sorted(row["run"] for row in csv.DictReader(f)) == sorted(run_dirs)
