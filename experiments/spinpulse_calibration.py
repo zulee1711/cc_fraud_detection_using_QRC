@@ -52,9 +52,13 @@ def gate_report(backend, samples=200):
         if c.noisy:
             # traces as long as the gate, so every sample regenerates them: independent samples
             duration = pulse.duration + pulse.duration % 2
-            segment = 1 if c.noise_type == "white" else c.segment_duration or duration
-            if c.noise_type == "quasistatic" and duration % segment:
-                segment = duration
+            if c.noise_type == "white":
+                segment = 1  # required by SpinPulse
+            else:
+                segment = c.segment_duration or duration
+                segment += segment % 2  # pink noise needs an even segment
+                if c.noise_type == "quasistatic" and duration % segment:
+                    segment = duration  # as in the backend: one constant value over the gate
             env = ExperimentalEnvironment(
                 hardware_specs=specs,
                 noise_type=NoiseType[c.noise_type.upper()],
@@ -62,7 +66,7 @@ def gate_report(backend, samples=200):
                 TJS=c.TJS if n == 2 else None,
                 duration=duration,
                 only_idle=c.only_idle,
-                segment_duration=segment + segment % 2,
+                segment_duration=segment,
                 seed=c.seed,
             )
             with warnings.catch_warnings():  # "more samples than one trace": intended
