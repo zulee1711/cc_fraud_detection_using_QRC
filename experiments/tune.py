@@ -40,15 +40,21 @@ import experiments.cli as cli
 from qrc.backends.estimator import window_circuit
 from qrc.hamiltonians import HamiltonianTopology
 
-N_MEM_QUBITS = (1, 4)
-EXTRA_INPUT_QUBITS = 2  # angle / re-uploading: input qubits beyond one per feature
+N_MEM_QUBITS = (2, 5)
+# angle / re-uploading: input qubits beyond one per feature (extra qubits repeat features)
+EXTRA_INPUT_QUBITS = 0
 ENCODING_LAYERS = (2, 3)  # re-uploading only
-ENCODING_SCALING = (np.pi / 4, 2 * np.pi)
-DEPTH = (1, 4)  # random circuit only
+# above pi, RY(scaling * u) folds back: two different values give the same state
+ENCODING_SCALING = (np.pi / 4, np.pi)
+DEPTH = (1, 6)  # random circuit only
 EVOLUTION_TIME = (0.1, 10.0)  # Hamiltonians only, log scale
+# Hamiltonians only; one step makes reset tfim / tfim-longitudinal blind to u -> 1 - u
+TROTTER_STEPS = (2, 3)
 ALPHA = (1e-1, 1e5)  # log scale
-OBSERVABLES = ("Z", "Z+ZZ", "XYZ", "Z+ZZ-all")
-PRECISIONS = (0.1, 0.05, 0.02, 0.01)  # shots objective only: ~100, 400, 2500, 10000 shots
+OBSERVABLES = ("Z", "Z+ZZ", "XYZ", "XYZ+XYZ-2body")
+# shots objective only: ~10^3, 10^4, 10^5 shots. At 0.05 the reservoir memory is
+# already lost in readout noise (results/armb/noreset_l5)
+PRECISIONS = (0.03, 0.01, 0.003)
 
 # Costs the search can minimise next to the validation metric (--objectives).
 COSTS = {
@@ -81,6 +87,7 @@ SEARCHED = (
     "hamiltonian",
     "topology",
     "evolution_time",
+    "trotter_steps",
     "depth",
     "entangler",
     "observables",
@@ -113,8 +120,8 @@ def suggest_params(
     """One point of the search space, as ``experiments.cli qrc`` argument values.
 
     Parameters that only apply to one branch (the input qubit range of each
-    encoding, re-uploading layers, random-circuit depth, Hamiltonian topology and
-    evolution time) are only suggested on that branch. The precision (shots) is
+    encoding, re-uploading layers, random-circuit depth, Hamiltonian topology,
+    evolution time and Trotter steps) are only suggested on that branch. The precision (shots) is
     only searched when `precisions` is given.
     """
     encoding = trial.suggest_categorical("encoding", encodings)
@@ -150,6 +157,7 @@ def suggest_params(
             evolution_time=trial.suggest_float(
                 "evolution_time", *EVOLUTION_TIME, log=True
             ),
+            trotter_steps=trial.suggest_int("trotter_steps", *TROTTER_STEPS),
         )
     if precisions:
         params["precision"] = trial.suggest_categorical("precision", precisions)
@@ -302,6 +310,14 @@ def build_parser():
     parser.add_argument(
         "--sampler-seed", type=int, default=0, help="seed of the TPE sampler"
     )
+    parser.add_argument(
+        "--n-jobs",
+        type=int,
+        default=1,
+        help="trials run in parallel threads, sharing the prepared data. Speeds up the "
+        "numpy backend and gaussian with --simulator numpy (numpy releases the GIL); the Aer "
+        "backends gain nothing",
+    )
     return parser
 
 
@@ -390,6 +406,18 @@ def main(argv=None):
 
     data = cli.prepare_data(base_args)
     cli.print_data_summary(data)
+    if args.metric in cli.CATEGORY_METRIC_NAMES:
+        # The per-category AP is undefined (NaN) without frauds of that category
+        category = args.metric.removeprefix("average_precision_")
+        n_frauds = data["summary"]["validation"].get(f"frauds_{category}", 0)
+        if not n_frauds:
+            if not study.trials:
+                # don't leave a study whose setup would block the corrected rerun
+                optuna.delete_study(study_name=args.study_name, storage=storage)
+            raise SystemExit(
+                f"--metric {args.metric}: the validation split has no {category} frauds; "
+                "use data with fraud scenarios and more customers (e.g. data/sc3_c1000_x6)"
+            )
 
     study.optimize(
         lambda trial: objective(
@@ -397,6 +425,7 @@ def main(argv=None):
         ),
         n_trials=args.n_trials,
         timeout=args.timeout,
+        n_jobs=args.n_jobs,
     )
 
     study.trials_dataframe().to_csv(study_dir / "trials.csv", index=False)

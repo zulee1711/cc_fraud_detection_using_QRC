@@ -43,7 +43,10 @@ class ClassicalReadout:
         self.class_weight = "balanced" if use_balanced_weights else None
         self.scaler = StandardScaler()  # normalizes each feature using statistics calculated from training set              
 
-        self.model = LogisticRegression(C=1.0/alpha, class_weight=self.class_weight, max_iter=1000)
+        # Newton-Cholesky converges to the optimum in a few iterations; lbfgs at its default tol stopped early on
+        # wide reservoir readouts (~45 features), so the AP depended on the feature order by up to ~0.02.
+        self.model = LogisticRegression(C=1.0/alpha, class_weight=self.class_weight, solver="newton-cholesky",
+                                        max_iter=1000)
 
     def prepare_features(self, reservoir_outputs: np.ndarray, fit_scaler: bool = False) -> np.ndarray:
         """
