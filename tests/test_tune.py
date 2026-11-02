@@ -48,7 +48,7 @@ def test_infeasible_encodings_are_dropped():
     assert tune.feasible_encodings(tune.ENCODINGS, 7, 9) == list(tune.ENCODINGS)
 
 
-def test_study_runs_saves_and_resumes(tmp_path):
+def test_study_runs_saves_and_resumes(tmp_path, stub_reservoir):
     argv = [
         "--n-trials",
         "2",
@@ -93,7 +93,7 @@ def test_study_runs_saves_and_resumes(tmp_path):
     assert (study_dir / "trials.csv").exists()
 
 
-def test_shots_objective_searches_precision(tmp_path):
+def test_shots_objective_searches_precision(tmp_path, stub_reservoir):
     study = tune.main(
         [
             "--n-trials",
@@ -204,7 +204,7 @@ def test_category_metric_without_such_frauds_is_refused(tmp_path):
     assert not optuna.get_all_study_summaries(f"sqlite:///{tmp_path / 'qrc' / 'study.db'}")
 
 
-def test_trials_run_in_parallel_threads(tmp_path):
+def test_trials_run_in_parallel_threads(tmp_path, stub_reservoir):
     study = tune.main(
         [
             "--n-trials",

@@ -137,34 +137,17 @@ def test_invalid_arguments():
     with pytest.raises(ValueError):
         EstimatorBackend(batch_size=0)
 
-def test_estimator_backend_supports_dense_encoding():
-    n_input_qubits = 3
-    n_features = 4
-
-    encoder = DenseAngleEncoding(n_input_qubits)
-    reservoir = RandomCircuitReservoir(
-        n_input_qubits,
-        N_MEM,
-        rng=np.random.default_rng(0),
-    )
-    observables = build_observables("Z+XX", n_input_qubits + N_MEM)
-    windows = np.random.default_rng(2).uniform(
-        0,
-        1,
-        (2, WINDOW_LENGTH, n_features),
-    )
-
-    result = EstimatorBackend().run_batch(
-        windows,
-        encoder,
-        reservoir,
-        observables,
-    )
-
-    assert result.shape == (2, len(observables))
+def test_estimator_dense_encoding_matches_reference():
+    encoder = DenseAngleEncoding(N_IN)
+    reservoir = RandomCircuitReservoir(N_IN, N_MEM, rng=np.random.default_rng(0))
+    observables = build_observables("Z+XX", reservoir.num_qubits)
+    windows = np.random.default_rng(2).uniform(0, 1, (2, WINDOW_LENGTH, N_IN + 1))
+    exact = exact_features(windows, encoder, reservoir, observables)
+    estimated = EstimatorBackend().run_batch(windows, encoder, reservoir, observables)
+    np.testing.assert_allclose(estimated, exact, atol=1e-10)
 
 
-def test_estimator_matches_reference():
+def test_estimator_reuploading_matches_reference():
     reservoir = RandomCircuitReservoir(N_IN, 2, rng=np.random.default_rng(0))
     encoder = ReuploadingEncoding(N_IN, num_layers=3, rng=1)
     observables = build_observables("Z+XX", reservoir.num_qubits)
