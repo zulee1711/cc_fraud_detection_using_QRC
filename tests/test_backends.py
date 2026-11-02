@@ -236,3 +236,61 @@ def test_numpy_gaussian_matches_estimator_gaussian(reset_inputs):
     noisy = NumpyBackend(reset_inputs=reset_inputs, precision=0.01, seed=7).run_batch(
         splits[0], encoder, reservoir, observables)
     assert 0.005 < np.std(noisy - exact) < 0.02
+
+
+@pytest.mark.parametrize("reset_inputs", [False, True])
+def test_numpy_shots_converge_to_exact_in_every_basis(reset_inputs):
+    reservoir = RandomCircuitReservoir(2, 1, rng=np.random.default_rng(0))
+    encoder = AngleEncoding(2)
+    observables = build_observables("XYZ-strings+XY", 3)
+    windows = np.random.default_rng(1).uniform(0, 1, (4, 3, 2))
+    exact = exact_features(windows, encoder, reservoir, observables, reset_inputs)
+    backend = NumpyBackend(reset_inputs=reset_inputs, precision=1e-3, seed=0, sampling="shots")
+
+    shots = backend.run_batch(windows, encoder, reservoir, observables)
+
+    np.testing.assert_allclose(shots, exact, atol=5e-3)  # 10⁶ shots per basis
+
+
+def test_numpy_shots_estimate_a_basis_from_the_same_outcomes():
+    reservoir = RandomCircuitReservoir(2, 1, rng=np.random.default_rng(0))
+    observables = build_observables(["IIZ", "IZI", "IZZ", "IIX", "IXI", "IXX"], 3)
+    windows = np.random.default_rng(1).uniform(0, 1, (200, 2, 2))
+    backend = NumpyBackend(precision=1.0, seed=0, sampling="shots")  # one shot per basis
+
+    z0, z1, z01, x0, x1, x01 = backend.run_batch(windows, AngleEncoding(2), reservoir, observables).T
+
+    assert set(np.unique(z0)) <= {-1.0, 1.0}
+    np.testing.assert_array_equal(z01, z0 * z1)
+    np.testing.assert_array_equal(x01, x0 * x1)
+
+
+def test_numpy_shot_noise_has_the_binomial_spread():
+    reservoir = RandomCircuitReservoir(2, 1, rng=np.random.default_rng(0))
+    encoder = AngleEncoding(2)
+    observables = build_observables("XYZ", 3)
+    windows = np.repeat(np.random.default_rng(1).uniform(0, 1, (1, 2, 2)), 4000, axis=0)
+    exact = exact_features(windows[:1], encoder, reservoir, observables)[0]
+    backend = NumpyBackend(precision=0.1, seed=0, sampling="shots")  # 100 shots per basis
+
+    shots = backend.run_batch(windows, encoder, reservoir, observables)
+
+    expected = np.sqrt(1 - exact**2) / 10
+    np.testing.assert_allclose(shots.std(0), expected, rtol=0.1, atol=2e-3)
+
+
+def test_numpy_shots_fill_repeated_observables():
+    reservoir = RandomCircuitReservoir(1, 1, rng=np.random.default_rng(0))
+    windows = np.random.default_rng(1).uniform(0, 1, (5, 2, 1))
+    backend = NumpyBackend(precision=1e-3, seed=0, sampling="shots")
+
+    shots = backend.run_batch(windows, AngleEncoding(1), reservoir, build_observables(["IZ", "XI", "IZ"], 2))
+
+    np.testing.assert_allclose(shots[:, 0], shots[:, 2], atol=1e-2)
+
+
+def test_numpy_shots_need_a_precision():
+    with pytest.raises(ValueError, match="needs precision"):
+        NumpyBackend(sampling="shots")
+    with pytest.raises(ValueError, match="sampling must be"):
+        NumpyBackend(sampling="exact")

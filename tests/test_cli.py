@@ -470,10 +470,12 @@ def test_add_operational_metrics_uses_customer_and_timestamp_metadata(monkeypatc
     assert metrics["test"]["card_precision_top_k"] == pytest.approx(0.4)
 
 
-def test_numpy_simulator_is_only_for_the_gaussian_backend():
+def test_numpy_simulator_is_only_for_the_sampling_backends():
     from qrc.backends.numpy_backend import NumpyBackend
 
     backend = pipeline.make_backend("gaussian", 0.01, 0, False, None, "numpy")
     assert isinstance(backend, NumpyBackend) and backend.precision == 0.01
-    with pytest.raises(ValueError, match="only applies to --backend gaussian"):
-        pipeline.make_backend("shots", 0.01, 0, False, None, "numpy")
+    backend = pipeline.make_backend("shots", 0.01, 0, True, None, "numpy")
+    assert isinstance(backend, NumpyBackend) and backend.sampling == "shots" and backend.reset_inputs
+    with pytest.raises(ValueError, match="only applies to --backend gaussian or shots"):
+        pipeline.make_backend("numpy", 0.01, 0, False, None, "numpy")

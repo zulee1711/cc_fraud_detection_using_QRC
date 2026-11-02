@@ -60,7 +60,7 @@ class Hamiltonian:
         return f"Hamiltonian({self.name!r}, num_qubits={self.num_qubits}, terms={len(self.ops)})"
 
 
-def tfim(num_qubits, v=1.0, topology=HamiltonianTopology.LINEAR, rng=None):
+def tfim(num_qubits, v=1.0, topology=HamiltonianTopology.LINEAR, rng=None, field=1.0):
     """`1.` Textbook transverse-field Ising model.
 
     H = Σ J_i,j X_i X_j  +  ν Σ Z_i
@@ -72,6 +72,7 @@ def tfim(num_qubits, v=1.0, topology=HamiltonianTopology.LINEAR, rng=None):
             Defaults to 1.0, which is what's used in the textbook TFIM literature.
         topology (HamiltonianTopology): the connectivity pattern. Default is linear which is the same
             as the Qoubly hardware topology.
+        field (float): multiplies the ν Σ Z_i field term only; the couplings keep their scale. Default 1.
     """
     pauli_list = []
     params = {}
@@ -83,14 +84,14 @@ def tfim(num_qubits, v=1.0, topology=HamiltonianTopology.LINEAR, rng=None):
         params[f"J{i}{j}"] = J
 
     for i in range(num_qubits):
-        pauli_list.append(("Z", [i], v))
+        pauli_list.append(("Z", [i], field * v))
 
     ops = SparsePauliOp.from_sparse_list(pauli_list, num_qubits)
 
     return Hamiltonian("tfim-textbook", num_qubits, ops, params)
 
 
-def tfim_longitudinal(num_qubits, v=1.0, topology=HamiltonianTopology.LINEAR, rng=None):
+def tfim_longitudinal(num_qubits, v=1.0, topology=HamiltonianTopology.LINEAR, rng=None, field=1.0):
     """`2.` Ising model with an added longitudinal field, which breaks
     integrability and makes the dynamics genuinely chaotic.
 
@@ -100,6 +101,7 @@ def tfim_longitudinal(num_qubits, v=1.0, topology=HamiltonianTopology.LINEAR, rn
         num_qubits (int): the number of qubits in the reservoir.
         v (float): the strength of the transverse field, which sets the scale of the random couplings.
         topology (HamiltonianTopology): the connectivity pattern.
+        field (float): multiplies the ν Σ Z_i field term only; the couplings keep their scale. Default 1.
     """
     pauli_list = []
     params = {}
@@ -111,7 +113,7 @@ def tfim_longitudinal(num_qubits, v=1.0, topology=HamiltonianTopology.LINEAR, rn
         params[f"J{i}{j}"] = J
 
     for i in range(num_qubits):
-        pauli_list.append(("Z", [i], v))
+        pauli_list.append(("Z", [i], field * v))
         g = rng.uniform(-1, 1)
         pauli_list.append(("X", [i], g))
         params[f"g{i}"] = g
@@ -121,7 +123,7 @@ def tfim_longitudinal(num_qubits, v=1.0, topology=HamiltonianTopology.LINEAR, rn
     return Hamiltonian("tfim-longitudinal", num_qubits, ops, params)
 
 
-def tfim_native(num_qubits, v=1.0, topology=HamiltonianTopology.LINEAR, rng=None):
+def tfim_native(num_qubits, v=1.0, topology=HamiltonianTopology.LINEAR, rng=None, field=1.0):
     """`3.` Model `2.` conjugated by Hadamards (X <-> Z), so the coupling term
     lands on SpinPulse's native RZZ. Same spectrum, cheaper circuit.
 
@@ -131,6 +133,7 @@ def tfim_native(num_qubits, v=1.0, topology=HamiltonianTopology.LINEAR, rng=None
         num_qubits (int): the number of qubits in the reservoir.
         v (float): the strength of the transverse field, which sets the scale of the random couplings.
         topology (HamiltonianTopology): the connectivity pattern.
+        field (float): multiplies the ν Σ Z_i field term only; the couplings keep their scale. Default 1.
     """
     pauli_list = []
     params = {}
@@ -142,7 +145,7 @@ def tfim_native(num_qubits, v=1.0, topology=HamiltonianTopology.LINEAR, rng=None
         params[f"J{i}{j}"] = J
 
     for i in range(num_qubits):
-        pauli_list.append(("Z", [i], v))
+        pauli_list.append(("Z", [i], field * v))
         g = rng.uniform(-1, 1)
         pauli_list.append(("X", [i], g))
         params[f"g{i}"] = g
@@ -153,7 +156,7 @@ def tfim_native(num_qubits, v=1.0, topology=HamiltonianTopology.LINEAR, rng=None
 
 
 def native_exchange(
-    num_qubits, v=1.0, eta=1.0, topology=HamiltonianTopology.LINEAR, rng=None
+    num_qubits, v=1.0, eta=1.0, topology=HamiltonianTopology.LINEAR, rng=None, field=1.0
 ):
     """`4.` Extension of `3.` with a tunable XY term.
 
@@ -164,6 +167,7 @@ def native_exchange(
         v (float): the strength of the transverse field, which sets the scale of the random couplings.
         eta (float): the relative strength of the XY term. Default is 1.
         topology (HamiltonianTopology): the connectivity pattern.
+        field (float): multiplies the ν Σ Z_i field term only; the couplings keep their scale. Default 1.
     """
     pauli_list = []
     params = {}
@@ -178,7 +182,7 @@ def native_exchange(
         params[f"etaJ{i}{j}"] = eta * J
 
     for i in range(num_qubits):
-        pauli_list.append(("Z", [i], v))
+        pauli_list.append(("Z", [i], field * v))
         g = rng.uniform(-1, 1)
         pauli_list.append(("X", [i], g))
         params[f"g{i}"] = g

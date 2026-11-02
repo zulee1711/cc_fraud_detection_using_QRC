@@ -9,6 +9,15 @@ from qrc.backends.base import Backend
 from qrc.encodings import Encoding
 from qrc.reservoirs import Reservoir
 
+SAMPLING_MODES = ("gaussian", "shots")
+
+# basis change that maps each Pauli to Z, for shot sampling: X -> H, Y -> H S†
+_TO_Z = {
+    "X": np.array([[1, 1], [1, -1]], complex) / np.sqrt(2),
+    "Y": np.array([[1, -1j], [1, 1j]], complex) / np.sqrt(2),
+    "Z": np.eye(2, dtype=complex),
+}
+
 # exp(-i θ/2 σ) for the encoding rotations
 _PAULI = {
     "rx": np.array([[0, 1], [1, 0]], complex),
@@ -36,10 +45,18 @@ class NumpyBackend(Backend):
             first, as in ``EstimatorBackend``.
         max_chunk_bytes (int): memory budget for the states of one chunk of windows; windows are
             processed in chunks that fit in it.
-        precision (float): standard deviation of the Gaussian noise added to every expectation
-            value, ``0.0`` for exact values. The noise is drawn exactly as in
-            ``EstimatorBackend(sampling="gaussian")``, so with the same seed both give the same
-            features up to machine precision.
+        precision (float): target standard error of every expectation value, ``0.0`` for exact
+            values. How it is realised depends on ``sampling``.
+        sampling (str):
+            * ``"gaussian"`` (default): adds Gaussian noise of width ``precision`` to every exact
+              expectation value. The noise is drawn exactly as in
+              ``EstimatorBackend(sampling="gaussian")``, so with the same seed both give the same
+              features up to machine precision.
+            * ``"shots"``: measures like hardware. The observables are grouped into measurement
+              bases (qubit-wise commuting groups), every basis gets the same ``ceil(1/precision²)``
+              shots (as Aer's estimator), the outcomes are drawn from the exact distribution of each
+              window's state in that basis, and every observable of a basis is estimated from the
+              same outcomes.
         seed (int, optional): seed of the noise, for reproducible results.
     """
 
@@ -49,11 +66,17 @@ class NumpyBackend(Backend):
         max_chunk_bytes: int = 256 * 2**20,
         precision: float = 0.0,
         seed: Optional[int] = None,
+        sampling: str = "gaussian",
     ):
         if max_chunk_bytes < 1:
             raise ValueError(f"max_chunk_bytes must be positive, got {max_chunk_bytes}")
         if precision < 0:
             raise ValueError("precision must be non-negative")
+        if sampling not in SAMPLING_MODES:
+            raise ValueError(f"sampling must be one of {SAMPLING_MODES}, got {sampling!r}")
+        if sampling == "shots" and precision == 0:
+            raise ValueError("sampling='shots' needs precision > 0 (shots per basis ~ 1 / precision**2)")
+        self.sampling = sampling
         self.reset_inputs = reset_inputs
         self.max_chunk_bytes = max_chunk_bytes
         self.precision = precision
@@ -77,8 +100,12 @@ class NumpyBackend(Backend):
         values = windows[..., np.arange(input_width) % num_features].astype(float)
 
         U = Operator(reservoir.circuit()).data
-        P = observables.to_matrix(array=True)
         D = U.shape[0]
+        if self.sampling == "shots":
+            shots = int(np.ceil(1 / self.precision**2))
+            bases = _measurement_bases(observables)
+        else:
+            P = observables.to_matrix(array=True)
         # a density matrix plus the step matrices, complex128
         per_window = 16 * D * D * (3 if self.reset_inputs else 2)
         chunk = max(1, self.max_chunk_bytes // per_window)
@@ -88,12 +115,26 @@ class NumpyBackend(Backend):
             x = values[start : start + chunk]
             if self.reset_inputs:
                 rho = self._density_matrices(x, gates, U, encoder.num_qubits)
-                out.append(np.einsum("pab,mba->mp", P, rho).real)
             else:
                 psi = self._statevectors(x, gates, U, encoder.num_qubits)
+            if self.sampling == "shots":
+                evs = np.empty((len(x), len(observables)))
+                for W, indices, signs in bases:
+                    if self.reset_inputs:
+                        probs = np.einsum("xa,mab,xb->mx", W, rho, W.conj()).real
+                    else:
+                        probs = np.abs(psi @ W.T) ** 2
+                    probs = np.clip(probs, 0, None)
+                    probs /= probs.sum(1, keepdims=True)
+                    counts = self._rng.multinomial(shots, probs)
+                    evs[:, indices] = counts @ signs / shots
+                out.append(evs)
+            elif self.reset_inputs:
+                out.append(np.einsum("pab,mba->mp", P, rho).real)
+            else:
                 out.append(np.einsum("ma,pab,mb->mp", psi.conj(), P, psi).real)
         evs = np.concatenate(out)
-        if self.precision > 0:
+        if self.sampling == "gaussian" and self.precision > 0:
             evs = evs + self._rng.normal(0.0, self.precision, evs.shape)
         return evs
 
@@ -129,6 +170,36 @@ class NumpyBackend(Backend):
             W = self._step_unitaries(x[:, t], gates, U, num_input_qubits)
             rho = W @ rho @ W.conj().transpose(0, 2, 1)
         return rho
+
+
+def _measurement_bases(observables):
+    """The observables grouped into measurement bases (qubit-wise commuting groups), as a list of
+    ``(W, indices, signs)``: ``W`` rotates the basis onto Z (qubit 0 the lowest bit), ``indices``
+    are the group's positions in ``observables`` and ``signs[x, k]`` is the eigenvalue (±1) of its
+    k-th observable on outcome ``x``. Qubits no observable of a group touches are measured in Z."""
+    n = observables.num_qubits
+    labels = [p.to_label() for p in observables]
+    outcomes = np.arange(2**n)
+    bases = []
+    for group in observables.group_qubit_wise_commuting():
+        letters = ["Z"] * n
+        for p in group:
+            for q in range(n):
+                if p.x[q] or p.z[q]:
+                    letters[q] = "X" if not p.z[q] else ("Y" if p.x[q] else "Z")
+        W = np.ones((1, 1), complex)
+        for q in range(n):
+            # qubit q is more significant than all lower ones: W ← u_q ⊗ W
+            W = np.kron(_TO_Z[letters[q]], W)
+        indices, masks = [], []
+        for p in group:
+            # several observables can be equal; give each its own position
+            index = next(i for i, label in enumerate(labels) if label == p.to_label() and i not in indices)
+            indices.append(index)
+            masks.append(sum(1 << q for q in range(n) if p.x[q] or p.z[q]))
+        parity = np.array([np.bitwise_count(outcomes & m).astype(int) & 1 for m in masks]).T
+        bases.append((W, indices, (1 - 2 * parity).astype(float)))
+    return bases
 
 
 def _encoding_gates(encoder, input_width):

@@ -67,7 +67,7 @@ whole study (data, feature set, window length, backend, ...). Passing an option 
 (e.g. `--n-mem-qubits`) is an error.
 
 `--n-jobs N` runs N trials at once, in threads that share the prepared data (so memory grows little).
-It speeds up the `numpy` backend and `gaussian` with `--simulator numpy` (about 3.6× with 6 threads on a
+It speeds up the `numpy` backend and `gaussian` / `shots` with `--simulator numpy` (about 3.6× with 6 threads on a
 6-core laptop); the Aer backends (`estimator-exact`, `gaussian`, `shots`) gain nothing from it. Use at
 most one thread per physical core.
 

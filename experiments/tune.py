@@ -316,7 +316,7 @@ def build_parser():
         type=int,
         default=1,
         help="trials run in parallel threads, sharing the prepared data. Speeds up the "
-        "numpy backend and gaussian with --simulator numpy (numpy releases the GIL); the Aer "
+        "numpy backend and gaussian or shots with --simulator numpy (numpy releases the GIL); the Aer "
         "backends gain nothing",
     )
     return parser
@@ -387,6 +387,8 @@ def main(argv=None):
             k: str(v) if isinstance(v, Path) else v
             for k, v in vars(base_args).items()
             if k not in (*searched, "seed", "output_dir")
+            # at its default, an option added later must not block resuming an older study
+            and not (k == "field" and v == 1.0)
         },
         "metric": args.metric,
         "objectives": objectives,
