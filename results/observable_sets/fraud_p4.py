@@ -28,6 +28,7 @@ import observables as obs
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # repository root, for experiments.cli
 from experiments import cli  # noqa: E402
+from qrc import pipeline  # noqa: E402
 from qrc.backends.numpy_backend import NumpyBackend, _encoding_gates, _input_unitaries  # noqa: E402
 
 DATA = ["--data", "load", "--data-dir", "data/sc3_c1000_x6", "--feature-set", "1"]
@@ -109,8 +110,8 @@ class NoisyBackend(NumpyBackend):
 
 def evaluate(features, data, args):
     """cli.run's evaluation: readout + threshold on validation, operational and per-category metrics."""
-    metrics, scores = cli.fit_and_evaluate(features, data, args.alpha, args.min_recall)
-    cli.add_derived_metrics(metrics, scores, data, args.top_k)
+    metrics, scores = pipeline.fit_and_evaluate(features, data, args.alpha, args.min_recall)
+    pipeline.add_derived_metrics(metrics, scores, data, args.top_k)
     return metrics
 
 
@@ -120,10 +121,10 @@ def flat(metrics):
 
 def run(seed, levels, out):
     args = qrc_args(seed)
-    data = cli.prepare_data(args)
+    data = pipeline.prepare_data(args)
     rows = []
     t0 = time.time()
-    base = evaluate(cli.baseline_features(data), data, args)
+    base = evaluate(pipeline.baseline_features(data), data, args)
     rows.append(dict(model="logistic", seed=seed, noise="", observables="raw window", n_settings=0, budget=np.nan,
                      n_features=data["X_train"].shape[1] * data["X_train"].shape[2], **flat(base)))
     print(f"logistic: customer AP val {base['validation']['average_precision_customer']:.3f} "
@@ -131,12 +132,11 @@ def run(seed, levels, out):
     for level in levels:
         t0 = time.time()
         backend = NoisyBackend(level, seed)
-        cli.make_backend = lambda *a, **k: backend
-        cli.qrc_features(data, args)
+        pipeline.qrc_features(data, args, backend=backend)
         sim = time.time() - t0
         n_settings = {k: len(v) for k, v in obs.pauli_settings(4, seed).items()}
         for (s, budget) in backend.variants[0]:
-            features = dict(zip(cli.SPLITS, (v[(s, budget)] for v in backend.variants)))
+            features = dict(zip(pipeline.SPLITS, (v[(s, budget)] for v in backend.variants)))
             m = evaluate(features, data, args)
             rows.append(dict(model="qrc", seed=seed, noise=level, observables=s, n_settings=n_settings[s],
                              budget=np.inf if budget is None else budget, n_features=features["train"].shape[1],
@@ -152,14 +152,13 @@ def run(seed, levels, out):
 def check():
     """Ideal: exact CLI observables equal NumpyBackend. Noisy: superoperator path equals gate by gate."""
     args = qrc_args(42, window_length=5)
-    data = cli.prepare_data(args)
-    small = {f"X_{s}": data["X_test"][:200] for s in cli.SPLITS}
-    ref = cli.build_protocol(args)[0]
+    data = pipeline.prepare_data(args)
+    small = {f"X_{s}": data["X_test"][:200] for s in pipeline.SPLITS}
+    ref = pipeline.build_protocol(args)[0]
     ref_features = ref.run(small["X_test"])  # NumpyBackend with reset (the CLI's backend)
     for level, gbg in (("ideal", False), ("2q2", False), ("2q2", True)):
         backend = NoisyBackend(level, 42, gate_by_gate=gbg)
-        cli.make_backend = lambda *a, **k: backend
-        feats, _ = cli.qrc_features(small, args)
+        feats, _ = pipeline.qrc_features(small, args, backend=backend)
         if level == "ideal":
             err = np.abs(feats["test"] - ref_features).max()
             assert err < 1e-8, f"ideal features disagree with NumpyBackend: {err:.2e}"

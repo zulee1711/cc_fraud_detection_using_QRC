@@ -44,6 +44,13 @@ pip install -e ".[classical]"
 
 ---
 
+![Sliding-window QRC protocol](docs/figures/qrc_protocol.png)
+
+*(a) For each transaction, the window of the customer's last L transactions is mapped by the quantum feature map to a feature vector, which a logistic regression turns into a score, and a threshold turns the score into a prediction. (b) Each transaction is one layer: reset of the input qubits, encoding, then evolution of the whole register. The memory qubits are never reset within the window. [PDF](docs/figures/qrc_protocol.pdf)*
+
+
+---
+
 ## Running experiments
 
 Every experiment is one command:

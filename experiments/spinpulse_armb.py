@@ -32,6 +32,7 @@ from pathlib import Path
 import numpy as np
 
 import experiments.cli as cli
+from qrc import pipeline
 from experiments.spinpulse_memory import make_backend
 from qrc.backends.spinpulse import NOISE_TYPES, SpinPulseBackend
 
@@ -47,7 +48,7 @@ READOUT_SEED_OFFSET = 30_000
 def subsample(data, limit, seed):
     """At most `limit` windows per split, drawn at random (same for every level and seed)."""
     rng = np.random.default_rng(seed)
-    for split in cli.SPLITS:
+    for split in pipeline.SPLITS:
         n = len(data[f"y_{split}"])
         if n <= limit:
             continue
@@ -62,17 +63,17 @@ def reservoir_features(level, seed, args, qrc_args, data):
     cache = args.cache_dir / f"{args.label}_{level}_seed{seed}.npz"
     if cache.exists():
         stored = np.load(cache, allow_pickle=True)
-        return {s: stored[s] for s in cli.SPLITS}, dict(stored["info"].item())
+        return {s: stored[s] for s in pipeline.SPLITS}, dict(stored["info"].item())
 
     qrc_args.seed = seed
-    protocol, reservoir_info = cli.build_protocol(qrc_args)  # encoder, reservoir and observables
+    protocol, reservoir_info = pipeline.build_protocol(qrc_args)  # encoder, reservoir and observables
     case = argparse.Namespace(**vars(args), reset=qrc_args.reset_inputs, precision=0.0)
     backend, t2_us, tj_us = make_backend(level, case, seed)
     protocol.backend = backend
 
     start = time.perf_counter()
     features, stderr = {}, []
-    for split in cli.SPLITS:
+    for split in pipeline.SPLITS:
         features[split] = protocol.run(np.asarray(data[f"X_{split}"]))
         if getattr(backend, "last_stderr", None) is not None:
             stderr.append(float(np.mean(backend.last_stderr)))
@@ -96,15 +97,15 @@ def score(features, data, qrc_args, precision, seed):
     if precision > 0:
         rng = np.random.default_rng([seed + READOUT_SEED_OFFSET, round(precision * 1e6)])
         features = {s: f + rng.normal(0.0, precision, f.shape) for s, f in features.items()}
-    metrics, scores = cli.fit_and_evaluate(features, data, qrc_args.alpha, qrc_args.min_recall)
-    cli.add_derived_metrics(metrics, scores, data, qrc_args.top_k)
+    metrics, scores = pipeline.fit_and_evaluate(features, data, qrc_args.alpha, qrc_args.min_recall)
+    pipeline.add_derived_metrics(metrics, scores, data, qrc_args.top_k)
     return metrics
 
 
 def rows_for(metrics, **common):
     return [
         {**common, "split": split, **{k: metrics[split].get(k, "") for k in FIELDS if k.startswith(("average", "card"))}}
-        for split in cli.EVAL_SPLITS
+        for split in pipeline.EVAL_SPLITS
     ]
 
 
@@ -141,7 +142,7 @@ def main(argv=None):
         raise SystemExit("give a `qrc ...` command after the options")
     qrc_args.backend = "numpy"  # only used to build the protocol; the level picks the real backend
 
-    data = cli.prepare_data(qrc_args)
+    data = pipeline.prepare_data(qrc_args)
     if args.limit:
         data = subsample(data, args.limit, seed=0)
     args.out.parent.mkdir(parents=True, exist_ok=True)
@@ -154,7 +155,7 @@ def main(argv=None):
             writer.writeheader()
 
         # reference: logistic regression on the raw window, same windows and readout noise model
-        raw = cli.baseline_features(data)
+        raw = pipeline.baseline_features(data)
         for precision in args.precisions:
             if ("logistic", "", "", str(precision)) not in done:
                 metrics = score(raw, data, qrc_args, precision, seed=0)

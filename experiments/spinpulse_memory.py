@@ -27,7 +27,8 @@ from pathlib import Path
 
 import numpy as np
 
-from experiments.cli import HAMILTONIAN_BUILDERS, PROJECT_ROOT
+from experiments.cli import PROJECT_ROOT
+from qrc.pipeline import HAMILTONIAN_BUILDERS
 from qrc.backends.numpy_backend import NumpyBackend
 from qrc.backends.spinpulse import NOISE_TYPES, SpinPulseBackend, SpinPulseConfig
 from qrc.benchmarks import MemoryTask

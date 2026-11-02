@@ -17,11 +17,7 @@ import json
 
 import numpy as np
 
-from experiments.cli import (
-    BACKEND_NAMES,
-    HAMILTONIAN_BUILDERS,
-    make_backend,
-)
+from qrc.pipeline import BACKEND_NAMES, HAMILTONIAN_BUILDERS, make_backend
 from qrc.benchmarks import IPCTask, MemoryTask, NARMA10Task, ParityTask
 from qrc.encodings import AngleEncoding
 from qrc.observables import build_observables

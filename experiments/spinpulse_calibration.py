@@ -21,7 +21,8 @@ import numpy as np
 from qiskit import QuantumCircuit
 from qiskit.quantum_info import Operator, average_gate_fidelity
 
-from experiments.cli import FEATURE_SETS, build_parser, build_protocol
+from experiments.cli import build_parser
+from qrc.pipeline import FEATURE_SETS, build_protocol
 from qrc.backends.spinpulse import SpinPulseBackend
 
 try:
