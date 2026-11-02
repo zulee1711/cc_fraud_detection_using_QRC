@@ -27,9 +27,10 @@ def test_depolarizing_model_without_noise_is_the_ideal_circuit():
     np.testing.assert_allclose(got, expected, atol=1e-10)
 
 
-def test_calibration_finds_a_t2_close_to_the_target(tmp_path):
+@pytest.mark.parametrize("noise", ["quasistatic", "white"])
+def test_calibration_finds_a_t2_close_to_the_target(tmp_path, noise):
     out = tmp_path / "calibration.csv"
-    main(["calibrate", "--noise-types", "quasistatic", "--targets", "0.99", "--samples", "20",
+    main(["calibrate", "--noise-types", noise, "--targets", "0.99", "--samples", "20",
           "--iterations", "6", "--calibration", str(out)])
     with open(out, newline="") as f:
         (row,) = list(csv.DictReader(f))
