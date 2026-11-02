@@ -181,3 +181,15 @@ def test_trotter_circuit_zero_time_is_identity():
     assert qc.num_qubits == 2
     np.testing.assert_allclose(Operator(qc).data, np.eye(4))
     np.testing.assert_allclose(Operator(qc_unitary).data, np.eye(4))
+
+
+@pytest.mark.parametrize("builder", [tfim, tfim_longitudinal, tfim_native, native_exchange])
+def test_field_scales_only_the_z_field_term(builder):
+    base = builder(4, rng=7)
+    scaled = builder(4, rng=7, field=0.25)
+    field_terms = [p.to_label().count("I") == 3 and "Z" in p.to_label() for p in base.ops.paulis]
+
+    assert scaled.ops.paulis == base.ops.paulis and scaled.params == base.params
+    np.testing.assert_allclose(
+        scaled.ops.coeffs, np.where(field_terms, 0.25, 1.0) * base.ops.coeffs
+    )

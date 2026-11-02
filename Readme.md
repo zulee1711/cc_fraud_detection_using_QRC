@@ -194,12 +194,13 @@ state after its last transaction is the readout input:
 | -------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------- |
 | `--backend`          | `estimator-exact`  | `estimator-exact`, `gaussian`, `shots`, `numpy` or `spinpulse` (see below)                                                |
 | `--precision`        | `0.05`             | Target standard error per expectation value (`gaussian` / `shots` / `spinpulse`; `0` is exact, `spinpulse` only)          |
-| `--simulator`        | `aer`              | What computes the exact values `gaussian` adds noise to: `aer` or `numpy` (same features, much faster)                    |
+| `--simulator`        | `aer`              | Simulator behind `gaussian` and `shots`: `aer` or `numpy` (much faster up to ~8 qubits)                                   |
 | `--n-input-qubits`   | number of features | Input qubits. With fewer qubits than features, dense angle encoding is used (see below)                                   |
 | `--n-mem-qubits`     | `2`                | Memory qubits                                                                                                             |
 | `--hamiltonian`      | `random`           | `random`, `tfim`, `tfim-longitudinal`, `tfim-native` or `native-exchange`                                                 |
 | `--topology`         | `linear`           | Hamiltonian connectivity: `linear`, `ring` or `fully-connected`; ignored for `--hamiltonian random`                       |
 | `--evolution-time`   | `1.0`              | Hamiltonian evolution time between encodings; ignored for `--hamiltonian random`                                          |
+| `--field`            | `1.0`              | Multiplies the Hamiltonian's Z field term, not its couplings; ignored for `--hamiltonian random`                        |
 | `--trotter-steps`    | `2`                | Trotter steps per evolution; ignored for `--hamiltonian random`. One step makes reset `tfim` blind to u → 1−u             |
 | `--depth`            | `2`                | Reservoir circuit depth                                                                                                   |
 | `--entangler`        | `cx`               | `cx` or `cry`                                                                                                             |
@@ -207,7 +208,7 @@ state after its last transaction is the readout input:
 | `--encoding-layers`  | `1`                | Times each transaction is encoded (data re-uploading). `1` is plain angle encoding                                        |
 | `--encoding-scaling` | `π`                | Rotation angle per unit of (scaled) feature, in each encoding layer                                                       |
 | `--reset-inputs`     | off                | Reset the input qubits before each transaction is encoded (density-matrix simulation, slower)                             |
-| `--observables`      | `Z`                | E.g. `Z`, `Z+ZZ`, `XX-all`, `XYZ` (see `build_observables` in `qrc/observables.py`)                                       |
+| `--observables`      | `Z`                | E.g. `Z`, `Z+ZZ`, `XX-all`, `XYZ`, `XYZ-strings` (see `build_observables` in `qrc/observables.py`)                                       |
 | `--seed`             | `42`               | Reservoir and sampling seed                                                                                               |
 
 The backends:
@@ -216,7 +217,10 @@ The backends:
 - `gaussian`: exact expectation values plus Gaussian noise of width `--precision`. This is a cheap stand-in for shot noise.
   With `--simulator numpy` the exact values come from the `numpy` backend instead of Aer. The noise is drawn the same
   way, so the features are the same up to machine precision, 4–6× faster on 4–5 qubits.
-- `shots`: real shot sampling with about `1/precision²` shots.
+- `shots`: real shot sampling. The observables are grouped into measurement bases (e.g. 3 for `XYZ`), every basis
+  gets `ceil(1/precision²)` shots, and all observables of a basis are estimated from the same outcomes. With
+  `--simulator numpy` the outcomes are drawn from the exact distribution of each window's state, which is much
+  faster than Aer for small registers.
 - `numpy`: exact, noiseless batched simulation in plain NumPy. Same results as `estimator-exact`, but much faster
   for small registers (up to ~8 qubits).
 - `spinpulse`: pulse-level noisy simulation with SpinPulse. 
@@ -349,7 +353,7 @@ Tuner options: `--n-trials`, `--timeout`, `--study-name`, `--output-dir` (defaul
 whole study (data, feature set, window length, backend, ...).
 
 `--n-jobs N` runs N trials at once, in threads that share the prepared data (so memory grows little).
-It speeds up the `numpy` backend and `gaussian` with `--simulator numpy` (about 3.6× with 6 threads on a
+It speeds up the `numpy` backend and `gaussian` / `shots` with `--simulator numpy` (about 3.6× with 6 threads on a
 6-core laptop); the Aer backends (`estimator-exact`, `gaussian`, `shots`) gain nothing from it. Use at most one thread per physical core. Passing an option the search sets
 (e.g. `--n-mem-qubits`) is an error.
 

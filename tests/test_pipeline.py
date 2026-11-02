@@ -43,3 +43,20 @@ def test_hamiltonian_argument_replaces_the_builder():
 def test_hamiltonian_argument_rejected_for_random_reservoir():
     with pytest.raises(ValueError, match="random-circuit"):
         pipeline.build_protocol(_qrc_args("--hamiltonian", "random"), hamiltonian=tfim)
+
+
+def test_field_option_matches_a_field_scaled_builder():
+    def builder(num_qubits, topology, rng):
+        return tfim(num_qubits, topology=topology, rng=rng, field=0.3)
+
+    args = _qrc_args("--hamiltonian", "tfim", "--backend", "numpy")
+    reference, _ = pipeline.qrc_features(_data(), args, hamiltonian=builder)
+    features, info = pipeline.qrc_features(_data(), _qrc_args("--hamiltonian", "tfim", "--backend", "numpy", "--field", "0.3"))
+
+    np.testing.assert_allclose(features["test"], reference["test"])
+    assert info["field"] == 0.3
+
+
+def test_field_option_rejected_with_a_hamiltonian_argument():
+    with pytest.raises(ValueError, match="--field"):
+        pipeline.build_protocol(_qrc_args("--hamiltonian", "tfim", "--field", "0.5"), hamiltonian=tfim)

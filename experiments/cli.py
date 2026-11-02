@@ -115,6 +115,7 @@ SUMMARY_FIELDS = (
     "hamiltonian",
     "topology",
     "evolution_time",
+    "field",
     "trotter_steps",
     # classical tanh random map
     "classical_model",
@@ -498,8 +499,9 @@ def build_parser():
         "--simulator",
         choices=("aer", "numpy"),
         default="aer",
-        help="computes the exact values the gaussian backend adds noise to. 'numpy' gives "
-        "the same features as 'aer' (same noise draws), much faster up to ~8 qubits",
+        help="simulator behind the gaussian and shots backends, 'numpy' much faster up to "
+        "~8 qubits. gaussian: same features as 'aer' (same noise draws). shots: outcomes drawn "
+        "from each basis's exact distribution, ceil(1/precision**2) shots per basis",
     )
     qrc_parser.add_argument(
         "--n-input-qubits",
@@ -544,6 +546,13 @@ def build_parser():
         type=float,
         default=1.0,
         help="Hamiltonian evolution time between encodings (unused for --hamiltonian=random)",
+    )
+    qrc_parser.add_argument(
+        "--field",
+        type=float,
+        default=1.0,
+        help="multiplies the Hamiltonian's Z field term, not its couplings "
+        "(unused for --hamiltonian=random)",
     )
     qrc_parser.add_argument(
         "--trotter-steps",
