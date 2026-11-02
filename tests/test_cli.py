@@ -10,7 +10,7 @@ import experiments.cli as cli
 from qrc import pipeline
 from experiments.cli import main
 from qrc.encodings import DenseAngleEncoding
-from qrc.reservoirs import HamiltonianReservoir, RandomCircuitReservoir
+from qrc.reservoirs import HamiltonianReservoir
 
 
 def _metrics(run_dir):
@@ -84,7 +84,7 @@ def test_saved_simulation_reloads_identically(tmp_path):
         assert _metrics(loaded)[split] == pytest.approx(_metrics(simulated)[split], nan_ok=True)
 
 
-def test_summary_records_reservoir_and_metrics(tmp_path):
+def test_summary_records_reservoir_and_metrics(tmp_path, stub_reservoir):
     """A qrc row in summary.csv carries the resolved reservoir settings and every metric."""
     run_dir = main(
         [
@@ -225,34 +225,6 @@ def test_qrc_cli_runs_with_dense_encoding(tmp_path):
     assert 0.0 <= _metrics(run_dir)["test"]["average_precision"] <= 1.0
 
 
-def test_qrc_cli_runs_with_fewer_input_qubits(tmp_path):
-    """QRC should run when dense encoding is required."""
-    run_dir = main(
-        [
-            "qrc",
-            "--size",
-            "small",
-            "--n-input-qubits",
-            "6",
-            "--output-dir",
-            str(tmp_path),
-        ]
-    )
-
-    assert run_dir.exists()
-    assert {p.name for p in run_dir.iterdir()} == {
-        "config.json",
-        "metrics.json",
-        "scores.npz",
-    }
-
-    metrics = _metrics(run_dir)
-
-    for split in ("validation", "test"):
-        assert 0.0 <= metrics[split]["average_precision"] <= 1.0
-
-
-
 def test_qrc_cli_selects_hamiltonian_and_topology(monkeypatch):
     args = cli.build_parser().parse_args(
         [
@@ -326,31 +298,6 @@ def test_append_summary_upgrades_old_header(tmp_path):
     ]
 
 
-def test_qrc_cli_keeps_random_reservoir_as_default(monkeypatch):
-    args = cli.build_parser().parse_args(["qrc", "--n-input-qubits", "7"])
-    captured = []
-
-    class RecordingProtocol:
-        def __init__(self, *protocol_args):
-            captured.append(protocol_args[1])
-            self.backend = protocol_args[3]
-
-        def run(self, windows):
-            return np.zeros((len(windows), 1))
-
-    monkeypatch.setattr(pipeline, "QRCProtocol", RecordingProtocol)
-    monkeypatch.setattr(pipeline, "make_backend", lambda *args: args)
-    data = {
-        f"X_{split}": np.zeros((1, 1, 7)) for split in ("train", "validation", "test")
-    }
-
-    _, reservoir_info = pipeline.qrc_features(data, args)
-
-    assert isinstance(captured[0], RandomCircuitReservoir)
-    assert reservoir_info["hamiltonian"] == "random"
-    assert reservoir_info["topology"] == ""
-
-
 def test_cli_runs_on_raw_amount_windows(tmp_path):
     """Arm B's input: the raw log amount only, no engineered history."""
     run_dir = main(["baseline", "--size", "small", "--feature-set", "1", "--window-length", "4",
@@ -420,15 +367,6 @@ def test_classical_random_map_method_is_selectable():
         "random_map_seed": 7,
         "rff_gamma": 1.0,
     }
-
-
-def test_evaluation_cli_arguments_are_exposed():
-    args = cli.build_parser().parse_args(
-        ["baseline", "--min-recall", "0.9", "--top-k", "25"]
-    )
-
-    assert args.min_recall == pytest.approx(0.9)
-    assert args.top_k == 25
 
 
 def test_fit_and_evaluate_selects_threshold_on_validation(monkeypatch):

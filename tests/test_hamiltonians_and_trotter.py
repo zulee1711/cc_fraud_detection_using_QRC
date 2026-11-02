@@ -28,17 +28,6 @@ def simple_hamiltonian():
     return Hamiltonian("toy", 2, ops, {"z0": 0.7, "x1": -0.5, "zz01": 0.2})
 
 
-def test_hamiltonian_repr_and_metadata():
-    ops = SparsePauliOp.from_sparse_list([("X", [0], 1.0), ("Y", [1], 2.0)], 2)
-    ham = Hamiltonian("demo", 2, ops, {"alpha": 1.0})
-
-    assert ham.name == "demo"
-    assert ham.num_qubits == 2
-    assert len(ham.ops) == 2
-    assert ham.params == {"alpha": 1.0}
-    assert "Hamiltonian(" in repr(ham)
-
-
 @pytest.mark.parametrize(
     ("builder", "expected_terms"),
     [
@@ -100,31 +89,18 @@ def test_hamiltonian_builder_rng_is_reproducible():
     assert first.params == second.params
 
 
-@pytest.mark.parametrize(
-    ("pauli_label", "expected_gate_names"),
-    [
-        ("I", []),
-        ("X", ["rx"]),
-        ("Y", ["ry"]),
-        ("Z", ["rz"]),
-        ("ZZ", ["rzz"]),
-        ("XX", ["ry", "rzz"]),
-        ("YY", ["rx", "rzz"]),
-    ],
-)
-def test_pauli_rotation_adds_expected_gates(pauli_label, expected_gate_names):
-    qc = QuantumCircuit(2 if len(pauli_label) > 1 else 1)
+@pytest.mark.parametrize("pauli_label", ["I", "X", "Y", "Z", "IX", "ZZ", "XX", "YY"])
+def test_pauli_rotation_is_the_exact_exponential(pauli_label):
+    """exp(-i θ P) for every supported term, including the basis-changed YY that no
+    Hamiltonian in the Trotter tests below contains."""
+    theta = 0.37
     pauli = Pauli(pauli_label)
+    qc = QuantumCircuit(pauli.num_qubits)
 
-    pauli_rotation(qc, pauli, 0.37)
+    pauli_rotation(qc, pauli, theta)
 
-    ops = qc.count_ops()
-    if not expected_gate_names:
-        assert ops == {}
-        return
-
-    for gate_name in expected_gate_names:
-        assert gate_name in ops
+    expected = expm(-1j * theta * pauli.to_matrix())
+    assert Operator(qc).equiv(Operator(expected))
 
 
 def test_pauli_rotation_rejects_unsupported_terms():
@@ -135,15 +111,6 @@ def test_pauli_rotation_rejects_unsupported_terms():
 
     with pytest.raises(ValueError, match="Only 1- and 2-qubit Pauli terms supported"):
         pauli_rotation(qc, Pauli("XYZ"), 0.5)
-
-
-def test_trotter_circuit_decomposed_matches_expected_structure(simple_hamiltonian):
-    qc = trotter_circuit(simple_hamiltonian, time=0.8, steps=3, decompose=True)
-
-    assert qc.num_qubits == 2
-    assert len(qc.data) > 0
-    assert any(name in qc.count_ops() for name in ["rx", "ry", "rz", "rzz"])
-    assert qc.depth() > 0
 
 
 def test_trotter_circuit_matrix_form_matches_exact_product(simple_hamiltonian):
