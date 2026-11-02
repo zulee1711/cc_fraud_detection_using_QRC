@@ -208,8 +208,8 @@ def print_data_summary(data):
 
 
 def make_backend(name, precision, seed, reset_inputs=False, spinpulse=None, simulator="aer"):
-    if simulator != "aer" and name != "gaussian":
-        raise ValueError(f"--simulator {simulator} only applies to --backend gaussian")
+    if simulator != "aer" and name not in ("gaussian", "shots"):
+        raise ValueError(f"--simulator {simulator} only applies to --backend gaussian or shots")
     if name == "estimator-exact":
         return EstimatorBackend(reset_inputs=reset_inputs)
     if name == "numpy":
@@ -217,6 +217,9 @@ def make_backend(name, precision, seed, reset_inputs=False, spinpulse=None, simu
     if name == "gaussian" and simulator == "numpy":
         # same values as Aer's (exact + the same Gaussian draws), much faster on few qubits
         return NumpyBackend(reset_inputs=reset_inputs, precision=precision, seed=seed)
+    if name == "shots" and simulator == "numpy":
+        # outcomes drawn from the exact distribution of each basis, much faster on few qubits
+        return NumpyBackend(reset_inputs=reset_inputs, precision=precision, seed=seed, sampling="shots")
     if name == "spinpulse":
         config = spinpulse or SpinPulseConfig(precision=precision, seed=seed)
         return SpinPulseBackend(config, reset_inputs=reset_inputs)
@@ -316,7 +319,8 @@ def build_protocol(args, backend=None, hamiltonian=None):
         args: the qrc arguments.
         backend (Backend, optional): run on this backend instead of the one ``args.backend`` names.
         hamiltonian (callable, optional): ``(num_qubits, topology, rng) -> Hamiltonian``, used
-            instead of ``HAMILTONIAN_BUILDERS[args.hamiltonian]`` (not with ``--hamiltonian random``).
+            instead of ``HAMILTONIAN_BUILDERS[args.hamiltonian]`` (not with ``--hamiltonian random``,
+            nor with ``--field`` other than 1).
 
     Returns:
         tuple: the ``QRCProtocol``, and the resolved reservoir settings (qubit counts
@@ -331,6 +335,9 @@ def build_protocol(args, backend=None, hamiltonian=None):
     encoder.input_width(n_features)
     if args.hamiltonian == "random" and hamiltonian is not None:
         raise ValueError("a Hamiltonian builder does not apply to the random-circuit reservoir")
+    field = getattr(args, "field", 1.0)  # absent from qrc arguments built before --field existed
+    if field != 1.0 and (hamiltonian is not None or args.hamiltonian == "random"):
+        raise ValueError("--field only applies to the built-in Hamiltonians")
     if args.hamiltonian == "random":
         reservoir = RandomCircuitReservoir(
             num_input_qubits=n_input_qubits,
@@ -342,12 +349,17 @@ def build_protocol(args, backend=None, hamiltonian=None):
         topology = ""
     else:
         topology = HamiltonianTopology(args.topology)
-        build_hamiltonian = hamiltonian or HAMILTONIAN_BUILDERS[args.hamiltonian]
-        hamiltonian = build_hamiltonian(
-            n_input_qubits + args.n_mem_qubits,
-            topology=topology,
-            rng=args.seed,
-        )
+        if hamiltonian is not None:
+            hamiltonian = hamiltonian(
+                n_input_qubits + args.n_mem_qubits, topology=topology, rng=args.seed
+            )
+        else:
+            hamiltonian = HAMILTONIAN_BUILDERS[args.hamiltonian](
+                n_input_qubits + args.n_mem_qubits,
+                topology=topology,
+                rng=args.seed,
+                field=field,
+            )
         reservoir = HamiltonianReservoir(
             hamiltonian,
             n_input_qubits,
@@ -373,6 +385,7 @@ def build_protocol(args, backend=None, hamiltonian=None):
         "hamiltonian": args.hamiltonian,
         "topology": topology.value if topology else topology,
         "evolution_time": args.evolution_time if topology else "",
+        "field": field if topology else "",
         "trotter_steps": args.trotter_steps if topology else "",
     }
     return protocol, reservoir_info
