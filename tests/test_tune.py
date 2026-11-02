@@ -9,6 +9,7 @@ import optuna
 import pytest
 
 import experiments.cli as cli
+from qrc import pipeline
 from experiments import tune
 
 
@@ -137,7 +138,7 @@ def test_circuit_cost_counts_window_and_routing():
         args = cli.build_parser().parse_args(
             ["qrc", "--hamiltonian", "tfim", "--topology", topology, "--n-mem-qubits", "2"]
         )
-        protocol, _ = cli.build_protocol(args)
+        protocol, _ = pipeline.build_protocol(args)
         return tune.circuit_cost(protocol, window_length, n_features=7, reset_inputs=False)
 
     linear = cost(3, "linear")
@@ -181,13 +182,13 @@ def test_qrc_cli_resolves_encoding(monkeypatch, flags, encoding):
         def run(self, windows):
             return np.zeros((len(windows), 1))
 
-    monkeypatch.setattr(cli, "QRCProtocol", RecordingProtocol)
-    monkeypatch.setattr(cli, "make_backend", lambda *args: args)
+    monkeypatch.setattr(pipeline, "QRCProtocol", RecordingProtocol)
+    monkeypatch.setattr(pipeline, "make_backend", lambda *args: args)
     data = {
         f"X_{split}": np.zeros((1, 1, 7)) for split in ("train", "validation", "test")
     }
 
-    _, reservoir_info = cli.qrc_features(data, args)
+    _, reservoir_info = pipeline.qrc_features(data, args)
 
     assert reservoir_info["encoding"] == encoding
     assert reservoir_info["evolution_time"] == 0.5

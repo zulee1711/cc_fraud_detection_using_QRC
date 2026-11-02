@@ -31,6 +31,7 @@ import numpy as np
 from qiskit.quantum_info import SparsePauliOp
 
 from experiments import cli
+from qrc import pipeline
 from qrc.backends.numpy_backend import NumpyBackend
 from qrc.evaluation import category_metrics
 from qrc.hamiltonians import Hamiltonian, tfim
@@ -69,21 +70,22 @@ def suggest(trial, model):
     return params
 
 
-def use_field(h):
-    """CLI TFIM with its field terms (the Z-only Paulis) multiplied by h; same couplings, same term order."""
+def field_tfim(h):
+    """The Hamiltonian builder of the CLI TFIM with its field terms (the Z-only Paulis) multiplied by h; same
+    couplings, same term order."""
     def build(num_qubits, topology, rng):
         H = tfim(num_qubits, topology=topology, rng=rng)
         coeffs = H.ops.coeffs.copy()
         coeffs[[not p.x.any() for p in H.ops.paulis]] *= h
         return Hamiltonian(f"tfim-h{h:.4g}", num_qubits, SparsePauliOp(H.ops.paulis, coeffs), {**H.params, "h": h})
 
-    cli.HAMILTONIAN_BUILDERS["tfim"] = build
+    return build
 
 
 def cli_args(model, params, seed):
-    """The CLI arguments of results/2_fraud at L = 15, with the tuned parameters."""
+    """The CLI arguments of results/2_fraud at L = 15, with the tuned parameters (the field h is passed to
+    pipeline.qrc_features as a Hamiltonian builder, see field_tfim)."""
     if model == "tfim":
-        use_field(params["h"])
         args = fraud.qrc_args("tfim", L, seed)
         args.evolution_time, args.encoding_scaling = params["time"], params["encoding_scaling"]
     else:
@@ -100,7 +102,7 @@ _DATA = {}
 
 def load_data():
     if not _DATA:
-        _DATA.update(cli.prepare_data(cli_args("esn", REFERENCE["esn"], 42)))
+        _DATA.update(pipeline.prepare_data(cli_args("esn", REFERENCE["esn"], 42)))
     return _DATA
 
 
@@ -108,10 +110,9 @@ def tuning_features(model, params, seed):
     """Exact XYZ-strings expectation values (TFIM) or final ESN states, every split."""
     data, args = load_data(), cli_args(model, params, seed)
     if model == "esn":
-        return cli.esn_features(data, args)
+        return pipeline.esn_features(data, args)
     args.observables = [str(p) for p in fraud.pauli_sets(4)[READOUT]]
-    cli.make_backend = lambda *a, **k: NumpyBackend(reset_inputs=True)
-    return cli.qrc_features(data, args)[0]
+    return pipeline.qrc_features(data, args, backend=NumpyBackend(reset_inputs=True), hamiltonian=field_tfim(params["h"]))[0]
 
 
 def validation_customer_ap(model, params, seed):
@@ -179,11 +180,10 @@ def evaluate(model, seed):
     t0 = time.perf_counter()
     if model == "tfim":  # exact + shot-sampled readouts from one run, as results/2_fraud
         backend = fraud.SettingsBackend(seed)
-        cli.make_backend = lambda *a, **k: backend
-        cli.qrc_features(data, args)
-        variants = {b: dict(zip(cli.SPLITS, (v[(READOUT, b)] for v in backend.variants))) for b in fraud.BUDGETS}
+        pipeline.qrc_features(data, args, backend=backend, hamiltonian=field_tfim(params["h"]))
+        variants = {b: dict(zip(pipeline.SPLITS, (v[(READOUT, b)] for v in backend.variants))) for b in fraud.BUDGETS}
     else:
-        variants = {None: cli.esn_features(data, args)}
+        variants = {None: pipeline.esn_features(data, args)}
     seconds = time.perf_counter() - t0
     records = []
     for budget, feats in variants.items():

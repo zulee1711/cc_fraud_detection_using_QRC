@@ -7,6 +7,7 @@ import numpy as np
 import pytest
 
 import experiments.cli as cli
+from qrc import pipeline
 from experiments.cli import main
 from qrc.encodings import DenseAngleEncoding
 from qrc.reservoirs import HamiltonianReservoir, RandomCircuitReservoir
@@ -116,7 +117,7 @@ def test_summary_records_reservoir_and_metrics(tmp_path):
     assert row["hamiltonian"] == "random"
     assert row["topology"] == ""
     for split in ("validation", "test"):
-        for metric in cli.METRIC_NAMES:
+        for metric in pipeline.METRIC_NAMES:
             assert row[f"{split}_{metric}"] != ""
 
 
@@ -190,13 +191,13 @@ def test_qrc_cli_selects_dense_encoding_when_qubits_are_fewer_than_features(
         def run(self, windows):
             return np.zeros((len(windows), 1))
 
-    monkeypatch.setattr(cli, "QRCProtocol", RecordingProtocol)
-    monkeypatch.setattr(cli, "make_backend", lambda *args: args)
+    monkeypatch.setattr(pipeline, "QRCProtocol", RecordingProtocol)
+    monkeypatch.setattr(pipeline, "make_backend", lambda *args: args)
     data = {
         f"X_{split}": np.zeros((1, 1, 7)) for split in ("train", "validation", "test")
     }
 
-    cli.qrc_features(data, args)
+    pipeline.qrc_features(data, args)
 
     assert len(protocol_args) == 1
     encoder = protocol_args[0][0]
@@ -276,13 +277,13 @@ def test_qrc_cli_selects_hamiltonian_and_topology(monkeypatch):
         def run(self, windows):
             return np.zeros((len(windows), 1))
 
-    monkeypatch.setattr(cli, "QRCProtocol", RecordingProtocol)
-    monkeypatch.setattr(cli, "make_backend", lambda *args: args)
+    monkeypatch.setattr(pipeline, "QRCProtocol", RecordingProtocol)
+    monkeypatch.setattr(pipeline, "make_backend", lambda *args: args)
     data = {
         f"X_{split}": np.zeros((1, 1, 7)) for split in ("train", "validation", "test")
     }
 
-    _, reservoir_info = cli.qrc_features(data, args)
+    _, reservoir_info = pipeline.qrc_features(data, args)
 
     assert len(captured) == 1
     assert isinstance(captured[0], HamiltonianReservoir)
@@ -298,7 +299,7 @@ def test_trotter_steps_flag_reaches_reservoir():
     args = cli.build_parser().parse_args(
         ["qrc", "--hamiltonian", "tfim", "--trotter-steps", "4"]
     )
-    protocol, reservoir_info = cli.build_protocol(args)
+    protocol, reservoir_info = pipeline.build_protocol(args)
 
     assert protocol.reservoir.steps == 4
     assert reservoir_info["trotter_steps"] == 4
@@ -337,13 +338,13 @@ def test_qrc_cli_keeps_random_reservoir_as_default(monkeypatch):
         def run(self, windows):
             return np.zeros((len(windows), 1))
 
-    monkeypatch.setattr(cli, "QRCProtocol", RecordingProtocol)
-    monkeypatch.setattr(cli, "make_backend", lambda *args: args)
+    monkeypatch.setattr(pipeline, "QRCProtocol", RecordingProtocol)
+    monkeypatch.setattr(pipeline, "make_backend", lambda *args: args)
     data = {
         f"X_{split}": np.zeros((1, 1, 7)) for split in ("train", "validation", "test")
     }
 
-    _, reservoir_info = cli.qrc_features(data, args)
+    _, reservoir_info = pipeline.qrc_features(data, args)
 
     assert isinstance(captured[0], RandomCircuitReservoir)
     assert reservoir_info["hamiltonian"] == "random"
@@ -375,19 +376,19 @@ def test_classical_tanh_parser_and_random_map_features():
     )
     data = {
         f"X_{split}": np.arange(12, dtype=float).reshape(4, 1, 3)
-        for split in cli.SPLITS
+        for split in pipeline.SPLITS
     }
 
-    features, info = cli.classical_random_map_features(data, args)
+    features, info = pipeline.classical_random_map_features(data, args)
 
-    assert all(features[split].shape == (4, 5) for split in cli.SPLITS)
+    assert all(features[split].shape == (4, 5) for split in pipeline.SPLITS)
     assert info == {
         "classical_model": "tanh",
         "random_map_width": 5,
         "random_map_scale": 0.75,
         "random_map_seed": 44,
     }
-    repeated, _ = cli.classical_random_map_features(data, args)
+    repeated, _ = pipeline.classical_random_map_features(data, args)
     assert np.array_equal(features["train"], repeated["train"])
 
 
@@ -405,13 +406,13 @@ def test_classical_random_map_method_is_selectable():
     )
     data = {
         f"X_{split}": np.arange(12, dtype=float).reshape(4, 1, 3)
-        for split in cli.SPLITS
+        for split in pipeline.SPLITS
     }
 
-    features, info = cli.classical_random_map_features(data, args)
+    features, info = pipeline.classical_random_map_features(data, args)
 
     assert args.random_map_method == "rff"
-    assert all(features[split].shape == (4, 4) for split in cli.SPLITS)
+    assert all(features[split].shape == (4, 4) for split in pipeline.SPLITS)
     assert info == {
         "classical_model": "rff",
         "random_map_width": 4,
@@ -461,7 +462,7 @@ def test_fit_and_evaluate_selects_threshold_on_validation(monkeypatch):
             }
             return metrics, y, np.ones(len(y), dtype=int), scores
 
-    monkeypatch.setattr(cli, "ClassicalReadout", RecordingReadout)
+    monkeypatch.setattr(pipeline, "ClassicalReadout", RecordingReadout)
 
     features = {
         "train": np.array([[1.0], [2.0]]),
@@ -474,7 +475,7 @@ def test_fit_and_evaluate_selects_threshold_on_validation(monkeypatch):
         "y_test": np.array([0, 1]),
     }
 
-    metrics, _ = cli.fit_and_evaluate(
+    metrics, _ = pipeline.fit_and_evaluate(
         features,
         data,
         alpha=2.0,
@@ -503,7 +504,7 @@ def test_add_operational_metrics_uses_customer_and_timestamp_metadata(monkeypatc
         calls.append((y.copy(), scores.copy(), customers.copy(), timestamps.copy(), top_k))
         return 0.4
 
-    monkeypatch.setattr(cli, "card_precision_top_k", fake_card_precision)
+    monkeypatch.setattr(pipeline, "card_precision_top_k", fake_card_precision)
 
     metrics = {"validation": {}, "test": {}}
     scores = {
@@ -523,7 +524,7 @@ def test_add_operational_metrics_uses_customer_and_timestamp_metadata(monkeypatc
         ),
     }
 
-    cli.add_operational_metrics(metrics, scores, data, top_k=25)
+    pipeline.add_operational_metrics(metrics, scores, data, top_k=25)
 
     assert len(calls) == 2
     assert all(call[-1] == 25 for call in calls)
@@ -534,7 +535,7 @@ def test_add_operational_metrics_uses_customer_and_timestamp_metadata(monkeypatc
 def test_numpy_simulator_is_only_for_the_gaussian_backend():
     from qrc.backends.numpy_backend import NumpyBackend
 
-    backend = cli.make_backend("gaussian", 0.01, 0, False, None, "numpy")
+    backend = pipeline.make_backend("gaussian", 0.01, 0, False, None, "numpy")
     assert isinstance(backend, NumpyBackend) and backend.precision == 0.01
     with pytest.raises(ValueError, match="only applies to --backend gaussian"):
-        cli.make_backend("shots", 0.01, 0, False, None, "numpy")
+        pipeline.make_backend("shots", 0.01, 0, False, None, "numpy")

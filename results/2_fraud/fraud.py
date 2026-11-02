@@ -8,7 +8,7 @@ QRC (CLI settings, experiments.cli): 1 input + 3 memory qubits, input reset, thr
 Baselines: logistic regression on the raw window, echo state networks of each QRC readout width (7 and 45 units,
 CLI defaults, untuned) and the LSTM (CLI defaults). Data: data/sc3_c1000_x6, feature set 1 (raw log amount).
 
-Each QRC run goes through cli.qrc_features (CLI observables Z+ZZ) with a backend that also keeps, per window, the
+Each QRC run goes through pipeline.qrc_features (CLI observables Z+ZZ) with a backend that also keeps, per window, the
 outcome distribution of every measurement setting needed, so every readout variant comes from the same reservoir run:
     observables  Z+ZZ (7 obs., 1 setting) and XYZ-strings (45 obs., every all-X / all-Y / all-Z Pauli string, 3 settings)
     budget       exact, 10⁵ and 10⁴ shots per window, split evenly over the set's settings; per-setting multinomial
@@ -33,6 +33,7 @@ from qiskit import QuantumCircuit
 from qiskit.quantum_info import Operator, Pauli, PauliList
 
 from experiments import cli
+from qrc import pipeline
 from qrc.backends.numpy_backend import NumpyBackend, _encoding_gates
 
 HERE = Path("results/2_fraud")
@@ -59,7 +60,7 @@ def pauli_sets(n):
     def strings(letter):
         return [Pauli("".join(letter if (m >> (n - 1 - q)) & 1 else "I" for q in range(n))) for m in range(1, 2 ** n)]
 
-    return {"Z+ZZ": cli.build_observables("Z+ZZ", n),
+    return {"Z+ZZ": pipeline.build_observables("Z+ZZ", n),
             "XYZ-strings": PauliList(strings("X") + strings("Y") + strings("Z"))}
 
 
@@ -114,7 +115,7 @@ class SettingsBackend(NumpyBackend):
     """NumpyBackend that also returns, per call, the features of every (set, budget) readout variant.
 
     Returns the exact expectation values of the CLI's observables as usual; `variants` collects one dict
-    {(set, budget): (M, n_obs) float32} per run_batch call (train, validation, test in cli.qrc_features order)."""
+    {(set, budget): (M, n_obs) float32} per run_batch call (train, validation, test in pipeline.qrc_features order)."""
 
     def __init__(self, seed):
         super().__init__(reset_inputs=True)
@@ -159,8 +160,8 @@ def qrc_args(reservoir, L, seed):
 
 def evaluate(features, data, args):
     """cli.run's evaluation: readout + threshold on validation, Card Precision@K and per-category AP."""
-    metrics, scores = cli.fit_and_evaluate(features, data, args.alpha, args.min_recall)
-    cli.add_derived_metrics(metrics, scores, data, args.top_k)
+    metrics, scores = pipeline.fit_and_evaluate(features, data, args.alpha, args.min_recall)
+    pipeline.add_derived_metrics(metrics, scores, data, args.top_k)
     return metrics, scores
 
 
@@ -171,15 +172,14 @@ def run_qrc(reservoir, L, seed, save_scores):
         print(f"{name}: exists, skipped")
         return
     args = qrc_args(reservoir, L, seed)
-    data = cli.prepare_data(args)
+    data = pipeline.prepare_data(args)
     backend = SettingsBackend(seed)
-    cli.make_backend = lambda *a, **k: backend
     t0 = time.perf_counter()
-    exact, info = cli.qrc_features(data, args)
+    exact, info = pipeline.qrc_features(data, args, backend=backend)
     seconds = time.perf_counter() - t0
     records = []
     for (s, budget) in backend.variants[0]:
-        features = dict(zip(cli.SPLITS, (v[(s, budget)] for v in backend.variants)))
+        features = dict(zip(pipeline.SPLITS, (v[(s, budget)] for v in backend.variants)))
         if s == OBSERVABLES and budget is None:  # same observables as the CLI run, any order
             assert np.allclose(np.sort(features["test"][:200], 1), np.sort(exact["test"][:200], 1), atol=1e-5)
         t1 = time.perf_counter()
@@ -210,7 +210,7 @@ def run_classical(model, L, seed, n_units=None):
     argv += ["--seed", str(seed)] if seeded else []
     argv += ["--n-units", str(n_units)] if model == "esn" else []
     args = cli.build_parser().parse_args(argv)
-    data = cli.prepare_data(args)
+    data = pipeline.prepare_data(args)
     run_dir = cli.run(args, data)
     metrics = json.loads((Path(run_dir) / "metrics.json").read_text())
     path.write_text(json.dumps([dict(model=model, L=L, seed=seed if seeded else None,
@@ -220,15 +220,14 @@ def run_classical(model, L, seed, n_units=None):
 
 def check():
     """Exact features from the stored distributions vs NumpyBackend, every reservoir; shot-noise feature error."""
-    data = cli.prepare_data(qrc_args("random", 5, 42))
-    small = {f"X_{s}": data["X_test"][:300] for s in cli.SPLITS}
-    paulis = cli.build_observables(OBSERVABLES, 4)
+    data = pipeline.prepare_data(qrc_args("random", 5, 42))
+    small = {f"X_{s}": data["X_test"][:300] for s in pipeline.SPLITS}
+    paulis = pipeline.build_observables(OBSERVABLES, 4)
     grouped = [p for _, g in settings_of(paulis) for p in g]
     order = [list(paulis).index(p) for p in grouped]
     for reservoir in RESERVOIR_ARGS:
         backend = SettingsBackend(42)
-        cli.make_backend = lambda *a, **k: backend
-        exact, _ = cli.qrc_features(small, qrc_args(reservoir, 5, 42))
+        exact, _ = pipeline.qrc_features(small, qrc_args(reservoir, 5, 42), backend=backend)
         ours = backend.variants[0][(OBSERVABLES, None)]
         err = np.abs(ours - exact["test"][:, order]).max()
         assert err < 1e-5, f"{reservoir}: {err:.2e}"
