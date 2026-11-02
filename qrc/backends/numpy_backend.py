@@ -179,7 +179,8 @@ def _measurement_bases(observables):
     k-th observable on outcome ``x``. Qubits no observable of a group touches are measured in Z."""
     n = observables.num_qubits
     labels = [p.to_label() for p in observables]
-    outcomes = np.arange(2**n)
+    # bits[x, q]: qubit q of outcome x
+    bits = (np.arange(2**n)[:, None] >> np.arange(n)) & 1
     bases = []
     for group in observables.group_qubit_wise_commuting():
         letters = ["Z"] * n
@@ -191,13 +192,13 @@ def _measurement_bases(observables):
         for q in range(n):
             # qubit q is more significant than all lower ones: W ← u_q ⊗ W
             W = np.kron(_TO_Z[letters[q]], W)
-        indices, masks = [], []
+        indices = []
         for p in group:
             # several observables can be equal; give each its own position
             index = next(i for i, label in enumerate(labels) if label == p.to_label() and i not in indices)
             indices.append(index)
-            masks.append(sum(1 << q for q in range(n) if p.x[q] or p.z[q]))
-        parity = np.array([np.bitwise_count(outcomes & m).astype(int) & 1 for m in masks]).T
+        support = np.array([p.x | p.z for p in group], dtype=int)
+        parity = (bits @ support.T) & 1
         bases.append((W, indices, (1 - 2 * parity).astype(float)))
     return bases
 

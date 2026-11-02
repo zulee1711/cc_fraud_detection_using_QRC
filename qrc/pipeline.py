@@ -336,7 +336,7 @@ def build_protocol(args, backend=None, hamiltonian=None):
     if args.hamiltonian == "random" and hamiltonian is not None:
         raise ValueError("a Hamiltonian builder does not apply to the random-circuit reservoir")
     field = getattr(args, "field", 1.0)  # absent from qrc arguments built before --field existed
-    if hamiltonian is not None and field != 1.0:
+    if field != 1.0 and (hamiltonian is not None or args.hamiltonian == "random"):
         raise ValueError("--field only applies to the built-in Hamiltonians")
     if args.hamiltonian == "random":
         reservoir = RandomCircuitReservoir(

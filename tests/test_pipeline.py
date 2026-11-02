@@ -60,3 +60,8 @@ def test_field_option_matches_a_field_scaled_builder():
 def test_field_option_rejected_with_a_hamiltonian_argument():
     with pytest.raises(ValueError, match="--field"):
         pipeline.build_protocol(_qrc_args("--hamiltonian", "tfim", "--field", "0.5"), hamiltonian=tfim)
+
+
+def test_field_option_rejected_with_the_random_reservoir():
+    with pytest.raises(ValueError, match="--field"):
+        pipeline.build_protocol(_qrc_args("--hamiltonian", "random", "--field", "0.5"))
