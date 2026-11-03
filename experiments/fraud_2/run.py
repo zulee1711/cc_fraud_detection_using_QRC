@@ -14,14 +14,17 @@ outcome distribution of every measurement setting needed, so every readout varia
     budget       exact, 10⁵ and 10⁴ shots per window, split evenly over the set's settings; per-setting multinomial
                  sampling of the exact distributions, train/validation/test all sampled (results/shots model)
 
-Commands (from the repository root, PYTHONPATH=.):
-    fraud.py qrc --reservoir {random,tfim,native-exchange} --window-length L --seed S [--save-scores]
-    fraud.py baseline --window-length L
-    fraud.py lstm --window-length L --seed S
-    fraud.py esn --window-length L --seed S --n-units N
-    fraud.py jobs     write jobs.txt (the full grid, most expensive first)
-    fraud.py check    exact features from the stored distributions == NumpyBackend, every reservoir
-Each run writes runs/<name>.json (one record per readout variant); existing records are skipped.
+Commands (from the repository root):
+    python -m experiments.fraud_2.run qrc --reservoir {random,tfim,native-exchange} --window-length L --seed S
+                                          [--save-scores]
+    python -m experiments.fraud_2.run baseline --window-length L
+    python -m experiments.fraud_2.run lstm --window-length L --seed S
+    python -m experiments.fraud_2.run esn --window-length L --seed S --n-units N
+    python -m experiments.fraud_2.run jobs     write jobs.txt next to this script (the full grid, most expensive first)
+    python -m experiments.fraud_2.run check    exact features from the stored distributions == NumpyBackend
+experiments/fraud_2/run_jobs.sh runs every line of jobs.txt. Each run writes <results-dir>/runs/<name>.json (one
+record per readout variant; default results/fraud_2, where aggregate.py and seed_spread.py turn them into tables and
+figures); existing records are skipped.
 """
 import argparse
 import json
@@ -33,11 +36,12 @@ from qiskit import QuantumCircuit
 from qiskit.quantum_info import Operator, Pauli, PauliList
 
 from experiments import cli
+from experiments.cli import PROJECT_ROOT
 from qrc import pipeline
 from qrc.backends.numpy_backend import NumpyBackend, _encoding_gates
 
-HERE = Path("results/2_fraud")
-RUNS = HERE / "runs"
+RESULTS = PROJECT_ROOT / "results" / "fraud_2"
+JOBS = Path(__file__).with_name("jobs.txt")
 DATA = ["--data", "load", "--data-dir", "data/sc3_c1000_x6", "--feature-set", "1"]
 RESERVOIR_ARGS = {
     "random": ["--hamiltonian", "random", "--depth", "4"],
@@ -165,9 +169,9 @@ def evaluate(features, data, args):
     return metrics, scores
 
 
-def run_qrc(reservoir, L, seed, save_scores):
+def run_qrc(reservoir, L, seed, save_scores, results=RESULTS):
     name = f"qrc_{reservoir}_L{L}_s{seed}"
-    path = RUNS / f"{name}.json"
+    path = results / "runs" / f"{name}.json"
     if path.exists():
         print(f"{name}: exists, skipped")
         return
@@ -188,7 +192,7 @@ def run_qrc(reservoir, L, seed, save_scores):
                             budget=budget, n_features=features["train"].shape[1], reservoir_seconds=seconds,
                             readout_seconds=time.perf_counter() - t1, metrics=metrics, **info))
         if save_scores:
-            np.savez_compressed(RUNS / "scores" / f"{name}_{s.replace('+', '_')}_{budget or 'exact'}.npz",
+            np.savez_compressed(results / "runs" / "scores" / f"{name}_{s.replace('+', '_')}_{budget or 'exact'}.npz",
                                 **{f"scores_{k}": v for k, v in scores.items()},
                                 **{f"y_{k}": data[f"y_{k}"] for k in scores},
                                 **{f"category_{k}": data[f"category_{k}"] for k in scores})
@@ -197,16 +201,16 @@ def run_qrc(reservoir, L, seed, save_scores):
     path.write_text(json.dumps(records, indent=1))
 
 
-def run_classical(model, L, seed, n_units=None):
+def run_classical(model, L, seed, n_units=None, results=RESULTS):
     """baseline, lstm or esn (n_units neurons, default reservoir settings) through cli.run."""
     seeded = model in ("lstm", "esn")
     tag = f"esn{n_units}" if model == "esn" else model
     name = f"{tag}_L{L}" + (f"_s{seed}" if seeded else "")
-    path = RUNS / f"{name}.json"
+    path = results / "runs" / f"{name}.json"
     if path.exists():
         print(f"{name}: exists, skipped")
         return
-    argv = [model, *DATA, "--window-length", str(L), "--output-dir", str(HERE / "cli_runs" / f"{tag}_L{L}")]
+    argv = [model, *DATA, "--window-length", str(L), "--output-dir", str(results / "cli_runs" / f"{tag}_L{L}")]
     argv += ["--seed", str(seed)] if seeded else []
     argv += ["--n-units", str(n_units)] if model == "esn" else []
     args = cli.build_parser().parse_args(argv)
@@ -240,7 +244,7 @@ def check():
 COST = {"qrc": lambda L: 10 + 7 * L, "lstm": lambda L: 20 * L, "esn": lambda L: 2 + L, "baseline": lambda L: 13}
 
 
-def jobs():
+def jobs(path=JOBS):
     """jobs.txt: the full grid, most expensive first (so a snake deal over the CI shards balances them)."""
     lines = []
     for L in WINDOW_LENGTHS:
@@ -251,8 +255,8 @@ def jobs():
         lines += [f"esn --window-length {L} --seed {seed} --n-units {n}" for n in ESN_UNITS for seed in SEEDS]
         lines.append(f"baseline --window-length {L}")
     lines.sort(key=lambda line: -COST[line.split()[0]](int(line.split()[line.split().index("--window-length") + 1])))
-    (HERE / "jobs.txt").write_text("\n".join(lines) + "\n")
-    print(f"{len(lines)} jobs written to {HERE / 'jobs.txt'}")
+    path.write_text("\n".join(lines) + "\n")
+    print(f"{len(lines)} jobs written to {path}")
 
 
 if __name__ == "__main__":
@@ -263,12 +267,14 @@ if __name__ == "__main__":
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--save-scores", action="store_true")
     parser.add_argument("--n-units", type=int, default=ESN_UNITS[0], help="ESN neurons (esn only)")
+    parser.add_argument("--results-dir", type=Path, default=RESULTS, help="where runs/ and cli_runs/ are written")
     a = parser.parse_args()
-    (RUNS / "scores").mkdir(parents=True, exist_ok=True)
     if a.command == "qrc":
-        run_qrc(a.reservoir, a.window_length, a.seed, a.save_scores)
+        (a.results_dir / "runs" / "scores").mkdir(parents=True, exist_ok=True)
+        run_qrc(a.reservoir, a.window_length, a.seed, a.save_scores, a.results_dir)
     elif a.command in ("baseline", "lstm", "esn"):
-        run_classical(a.command, a.window_length, a.seed, a.n_units if a.command == "esn" else None)
+        (a.results_dir / "runs").mkdir(parents=True, exist_ok=True)
+        run_classical(a.command, a.window_length, a.seed, a.n_units if a.command == "esn" else None, a.results_dir)
     elif a.command == "jobs":
         jobs()
     else:

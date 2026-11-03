@@ -1,8 +1,7 @@
-"""Aggregate results/2_fraud/runs/*.json: runs.csv, tables.md, fraud_ap_vs_L.{pdf,png} and
-fraud_shots.png. Works on a partial sweep:
-missing cells are left out.
+"""Aggregate results/fraud_2/runs/*.json (written by experiments/fraud_2/run.py): runs.csv, tables.md,
+fraud_ap_vs_L.{pdf,png} and fraud_shots.png. Works on a partial sweep: missing cells are left out.
 
-Usage: PYTHONPATH=. .venv/bin/python results/2_fraud/aggregate.py
+Usage: .venv/bin/python results/fraud_2/aggregate.py
 """
 import json
 from pathlib import Path
@@ -13,7 +12,7 @@ import pandas as pd
 from scipy import stats
 
 matplotlib.use("Agg")
-HERE = Path("results/2_fraud")
+HERE = Path(__file__).resolve().parent
 METRICS = {"average_precision_customer": "customer AP", "average_precision_amount": "amount AP",
            "average_precision_terminal": "terminal AP", "average_precision": "overall AP",
            "card_precision_top_k": "card precision@100", "roc_auc": "ROC AUC"}

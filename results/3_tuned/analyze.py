@@ -1,5 +1,5 @@
 """Tables, paired tests and figure for results/3_tuned (tuned.py): writes report.md and
-tuning.{pdf,png}. References (untuned TFIM / ESN-45, logistic regression, LSTM at L = 15) come from results/2_fraud.
+tuning.{pdf,png}. References (untuned TFIM / ESN-45, logistic regression, LSTM at L = 15) come from results/fraud_2.
 
 Usage: PYTHONPATH=. .venv/bin/python results/3_tuned/analyze.py
 """
@@ -15,7 +15,7 @@ from scipy import stats
 matplotlib.use("Agg")
 optuna.logging.set_verbosity(optuna.logging.WARNING)
 HERE = Path("results/3_tuned")
-FRAUD = Path("results/2_fraud")
+FRAUD = Path("results/fraud_2")
 L = 15
 SEEDS = tuple(range(42, 52))
 TUNE_SEEDS = (42, 43, 44)
@@ -40,7 +40,7 @@ def _record(path, observables="XYZ-strings", budget=None):
 
 
 def _scores_2fraud(kind, seed, budget="exact"):
-    """Validation/test scores of a results/2_fraud run at L = 15, with labels and categories."""
+    """Validation/test scores of a results/fraud_2 run at L = 15, with labels and categories."""
     if kind == "tfim":
         z = np.load(FRAUD / "runs" / "scores" / f"qrc_tfim_L{L}_s{seed}_XYZ-strings_{budget}.npz")
         return dict(z)
@@ -178,7 +178,7 @@ def main():
     runs = load()
     table, histories = tuning_table()
     out = ["# Equal-budget tuning at L = 15: TFIM (2 Trotter steps, XYZ-strings) vs ESN-45\n",
-           "Protocol in tuned.py. References (untuned, logistic, LSTM) from results/2_fraud at L = 15.\n",
+           "Protocol in tuned.py. References (untuned, logistic, LSTM) from results/fraud_2 at L = 15.\n",
            "## Tuning (validation customer AP, mean over seeds 42-44)\n", table, "",
            "## Test, mean ± std over seeds 42-51\n", ap_table(runs, SEEDS), "",
            "## Test, held-out seeds 45-51\n", ap_table(runs, HELD_OUT), "",

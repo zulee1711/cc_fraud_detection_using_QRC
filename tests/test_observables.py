@@ -6,7 +6,7 @@ from qrc.observables import build_observables
 def test_xyz_strings_are_every_single_letter_pauli_string():
     n = 4
     observables = build_observables("XYZ-strings", n)
-    # results/2_fraud's construction, whose order the readout features follow
+    # experiments/fraud_2's construction, whose order the readout features follow
     expected = [
         "".join(letter if (m >> (n - 1 - q)) & 1 else "I" for q in range(n))
         for letter in "XYZ"

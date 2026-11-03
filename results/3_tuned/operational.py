@@ -1,5 +1,5 @@
 """Operational metrics of the tuned models (results/3_tuned) at two threshold rules, with logistic regression and the LSTM
-of results/2_fraud as references (L = 15).
+of results/fraud_2 as references (L = 15).
 
 Both thresholds are chosen per fitted model and seed on its own validation scores and applied unchanged to the test
 scores (report, Evaluation Methods); predictions are score >= threshold.
@@ -35,7 +35,7 @@ tuned = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(tuned)
 
 HERE = Path("results/3_tuned")
-FRAUD = Path("results/2_fraud")
+FRAUD = Path("results/fraud_2")
 R_MIN = 0.80  # the report's and the CLI's default
 R_SWEEP = np.round(np.arange(0.50, 0.951, 0.05), 2)
 F_MAX = 0.01
