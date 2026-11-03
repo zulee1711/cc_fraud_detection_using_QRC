@@ -186,3 +186,8 @@ cc_fraud_detection_using_QRC/
 └── results/                 # run outputs, sweeps and figures; results/<study>/ holds a study's run
                              # records, its plotting scripts and a README with the findings
 ```
+
+`thelab/` is the [QRC-Lab](https://github.com/qrclab-ui/thelab) toolbox ([arXiv:2602.03522](https://arxiv.org/abs/2602.03522)) the company coaches suggested we look into. Early
+in the project we used it as a reference implementation: our `RandomCircuitReservoir` reproduces
+its random reservoir, and we checked that we can recover their results. Everything else (Hamiltonian reservoirs, backends, the windowed fraud pipeline,
+classical controls) is our own, and the `qrc` package does not import `thelab`.
