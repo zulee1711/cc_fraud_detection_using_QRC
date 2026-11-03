@@ -1,4 +1,4 @@
-"""Operational metrics of the tuned models (results/3_tuned) at two threshold rules, with logistic regression and the LSTM
+"""Operational metrics of the tuned models (results/tuned_3) at two threshold rules, with logistic regression and the LSTM
 of results/fraud_2 as references (L = 15).
 
 Both thresholds are chosen per fitted model and seed on its own validation scores and applied unchanged to the test
@@ -15,9 +15,8 @@ handbook definition; threshold-free). Sweeps over r_min and f_max show the trade
 
 Writes operational.md, operational_table_<rule>.tex, operational.csv (per model, seed, rule and level) and
 operational_<rule>.{pdf,png}.
-Usage: PYTHONPATH=. .venv/bin/python results/3_tuned/operational.py
+Usage: PYTHONPATH=. .venv/bin/python results/tuned_3/operational.py
 """
-import importlib.util
 import json
 from pathlib import Path
 
@@ -27,15 +26,13 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import balanced_accuracy_score, f1_score, matthews_corrcoef, precision_score, recall_score
 
+from experiments.tuned_3 import run as tuned
 from qrc.decision import card_precision_top_ks, select_thresholds_max_recall, select_thresholds_min_fp
 
 matplotlib.use("Agg")
-_spec = importlib.util.spec_from_file_location("tuned", "results/3_tuned/tuned.py")
-tuned = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(tuned)
 
-HERE = Path("results/3_tuned")
-FRAUD = Path("results/fraud_2")
+HERE = Path(__file__).resolve().parent
+FRAUD = HERE.parent / "fraud_2"
 R_MIN = 0.80  # the report's and the CLI's default
 R_SWEEP = np.round(np.arange(0.50, 0.951, 0.05), 2)
 F_MAX = 0.01
@@ -57,6 +54,12 @@ plt.rcParams.update({"font.size": 9, "axes.edgecolor": MUTED, "axes.labelcolor":
                      "pdf.fonttype": 42, "figure.facecolor": "white"})
 
 
+def cli_run_dir(stored):
+    """A CLI run directory of results/fraud_2, from the path its record stored (written before the move from
+    results/2_fraud): <model>_L<L>/<run> under FRAUD / "cli_runs"."""
+    return FRAUD / "cli_runs" / Path(stored).parent.name / Path(stored).name
+
+
 def runs():
     """{label: [(seed, stored test metrics, scores {validation, test})]}."""
     out = {"TFIM tuned": [], "ESN-45 tuned": []}
@@ -70,7 +73,7 @@ def runs():
         out[label] = []
         for s in ([None] if "{}" not in name else tuned.EVAL_SEEDS):
             record = json.loads((FRAUD / "runs" / f"{name.format(s)}.json").read_text())[0]
-            z = np.load(Path(record["run_dir"]) / "scores.npz")
+            z = np.load(cli_run_dir(record["run_dir"]) / "scores.npz")
             out[label].append((s, record["metrics"], {k: z[f"scores_{k}"] for k in ("validation", "test")}))
     return out
 

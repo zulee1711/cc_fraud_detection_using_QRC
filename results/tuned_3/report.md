@@ -1,6 +1,6 @@
 # Equal-budget tuning at L = 15: TFIM (2 Trotter steps, XYZ-strings) vs ESN-45
 
-Protocol in tuned.py. References (untuned, logistic, LSTM) from results/fraud_2 at L = 15.
+Protocol in experiments/tuned_3/run.py. References (untuned, logistic, LSTM) from results/fraud_2 at L = 15.
 
 ## Tuning (validation customer AP, mean over seeds 42-44)
 

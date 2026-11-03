@@ -1,7 +1,7 @@
-"""Tables, paired tests and figure for results/3_tuned (tuned.py): writes report.md and
+"""Tables, paired tests and figure for results/tuned_3 (experiments/tuned_3/run.py): writes report.md and
 tuning.{pdf,png}. References (untuned TFIM / ESN-45, logistic regression, LSTM at L = 15) come from results/fraud_2.
 
-Usage: PYTHONPATH=. .venv/bin/python results/3_tuned/analyze.py
+Usage: .venv/bin/python results/tuned_3/analyze.py
 """
 import json
 from pathlib import Path
@@ -14,8 +14,8 @@ from scipy import stats
 
 matplotlib.use("Agg")
 optuna.logging.set_verbosity(optuna.logging.WARNING)
-HERE = Path("results/3_tuned")
-FRAUD = Path("results/fraud_2")
+HERE = Path(__file__).resolve().parent
+FRAUD = HERE.parent / "fraud_2"
 L = 15
 SEEDS = tuple(range(42, 52))
 TUNE_SEEDS = (42, 43, 44)
@@ -46,7 +46,13 @@ def _scores_2fraud(kind, seed, budget="exact"):
         return dict(z)
     name = {"esn": f"esn45_L{L}_s{seed}", "logistic": f"baseline_L{L}", "lstm": f"lstm_L{L}_s{seed}"}[kind]
     run_dir = json.loads((FRAUD / "runs" / f"{name}.json").read_text())[0]["run_dir"]
-    return dict(np.load(Path(run_dir) / "scores.npz"))
+    return dict(np.load(cli_run_dir(run_dir) / "scores.npz"))
+
+
+def cli_run_dir(stored):
+    """A CLI run directory of results/fraud_2, from the path its record stored (written before the move from
+    results/2_fraud): <model>_L<L>/<run> under FRAUD / "cli_runs"."""
+    return FRAUD / "cli_runs" / Path(stored).parent.name / Path(stored).name
 
 
 def load():
@@ -178,7 +184,7 @@ def main():
     runs = load()
     table, histories = tuning_table()
     out = ["# Equal-budget tuning at L = 15: TFIM (2 Trotter steps, XYZ-strings) vs ESN-45\n",
-           "Protocol in tuned.py. References (untuned, logistic, LSTM) from results/fraud_2 at L = 15.\n",
+           "Protocol in experiments/tuned_3/run.py. References (untuned, logistic, LSTM) from results/fraud_2 at L = 15.\n",
            "## Tuning (validation customer AP, mean over seeds 42-44)\n", table, "",
            "## Test, mean ± std over seeds 42-51\n", ap_table(runs, SEEDS), "",
            "## Test, held-out seeds 45-51\n", ap_table(runs, HELD_OUT), "",
