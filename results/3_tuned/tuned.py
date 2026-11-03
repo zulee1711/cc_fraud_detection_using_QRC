@@ -1,17 +1,17 @@
 """Report section: TFIM (2 Trotter steps) vs an equal-width echo state network at equal tuning budget, L = 15.
 
-Follows results/2_fraud (same data, encoding, readout, threshold and metrics, experiments.cli) and the protocol of
+Follows results/fraud_2 (same data, encoding, readout, threshold and metrics, experiments.cli) and the protocol of
 results/tuned_esn (Pandey, arXiv:2607.09905):
     - equal width: QRC read out with XYZ-strings on 4 qubits (45 observables), ESN with 45 units;
     - equal budget: one Optuna TPE study per model, same sampler seed, same number of trials (100), four
-      hyperparameters each, each study starting from the model's untuned setting of results/2_fraud:
+      hyperparameters each, each study starting from the model's untuned setting of results/fraud_2:
         TFIM  field h (multiplies the field terms of qrc.hamiltonians.tfim; h = 1 is the CLI TFIM), evolution
               time t, encoding angle scaling, readout alpha                    (2 Trotter steps, 1 + 3 qubits, reset)
         ESN   spectral radius, leak rate, input scaling, readout alpha         (bias 0.2, CLI density)
       objective = validation customer AP (exact expectation values for TFIM), mean over reservoir seeds 42-44;
       the test split is never read while tuning;
     - final numbers: the best setting on seeds 42-51 (45-51 held out), test split read once; TFIM evaluated exact
-      and at 10⁵ / 10⁴ shots per window (results/2_fraud shot model). Validation/test scores are kept for the
+      and at 10⁵ / 10⁴ shots per window (experiments/fraud_2 shot model). Validation/test scores are kept for the
       operational metrics.
 
 Commands (from the repository root, PYTHONPATH=.):
@@ -21,7 +21,6 @@ Commands (from the repository root, PYTHONPATH=.):
     tuned.py time                                                    seconds per TFIM trial (3 seeds in parallel)
 """
 import argparse
-import importlib.util
 import json
 import time
 from concurrent.futures import ProcessPoolExecutor
@@ -31,15 +30,13 @@ import numpy as np
 from qiskit.quantum_info import SparsePauliOp
 
 from experiments import cli
+from experiments.fraud_2 import run as fraud
 from qrc import pipeline
 from qrc.backends.numpy_backend import NumpyBackend
 from qrc.evaluation import category_metrics
 from qrc.hamiltonians import Hamiltonian, tfim
 from qrc.readout import ClassicalReadout
 
-_spec = importlib.util.spec_from_file_location("fraud", "results/2_fraud/fraud.py")
-fraud = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(fraud)
 
 HERE = Path("results/3_tuned")
 RUNS = HERE / "runs"
@@ -50,7 +47,7 @@ TUNE_SEEDS = (42, 43, 44)
 EVAL_SEEDS = tuple(range(42, 52))
 SAMPLER_SEED = 0
 TRIALS = 100
-REFERENCE = {  # the untuned settings of results/2_fraud (CLI defaults)
+REFERENCE = {  # the untuned settings of results/fraud_2 (CLI defaults)
     "tfim": dict(h=1.0, time=1.0, encoding_scaling=float(np.pi), alpha=1.0),
     "esn": dict(spectral_radius=0.9, leak_rate=1.0, input_scaling=1.0, alpha=1.0),
 }
@@ -83,7 +80,7 @@ def field_tfim(h):
 
 
 def cli_args(model, params, seed):
-    """The CLI arguments of results/2_fraud at L = 15, with the tuned parameters (the field h is passed to
+    """The CLI arguments of results/fraud_2 at L = 15, with the tuned parameters (the field h is passed to
     pipeline.qrc_features as a Hamiltonian builder, see field_tfim)."""
     if model == "tfim":
         args = fraud.qrc_args("tfim", L, seed)
@@ -178,7 +175,7 @@ def evaluate(model, seed):
     n_trials = sum(t.state == optuna.trial.TrialState.COMPLETE for t in s.trials)
     data, args = load_data(), cli_args(model, params, seed)
     t0 = time.perf_counter()
-    if model == "tfim":  # exact + shot-sampled readouts from one run, as results/2_fraud
+    if model == "tfim":  # exact + shot-sampled readouts from one run, as results/fraud_2
         backend = fraud.SettingsBackend(seed)
         pipeline.qrc_features(data, args, backend=backend, hamiltonian=field_tfim(params["h"]))
         variants = {b: dict(zip(pipeline.SPLITS, (v[(READOUT, b)] for v in backend.variants))) for b in fraud.BUDGETS}

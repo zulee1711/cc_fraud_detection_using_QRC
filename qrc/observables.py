@@ -53,7 +53,7 @@ def build_observables(specs: Union[str, List[str]], num_qubits: int) -> PauliLis
 
     for token in tokens:
         if token == "XYZ-strings":
-            # qubit k carries the letter iff bit k of m is set; same order as results/2_fraud
+            # qubit k carries the letter iff bit k of m is set; same order as experiments/fraud_2
             for letter in "XYZ":
                 for m in range(1, 2**num_qubits):
                     observables.append(

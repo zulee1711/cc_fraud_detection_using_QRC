@@ -1,4 +1,4 @@
-"""How much the reservoir seed matters in the section 7.2 fraud sweep. Reads results/2_fraud/runs/*.json (via
+"""How much the reservoir seed matters in the section 7.2 fraud sweep. Reads results/fraud_2/runs/*.json (via
 aggregate.load) and writes:
 
   seed_spread_lines.png      test customer AP vs L, one line per seed, against logistic regression
@@ -13,7 +13,7 @@ aggregate.load) and writes:
 The data split and logistic regression are fixed; the seed draws the reservoir (QRC: random circuit / couplings,
 ESN: weights; LSTM: init) and, under shots, the sampling.
 
-Usage: PYTHONPATH=. .venv/bin/python results/2_fraud/seed_spread.py
+Usage: .venv/bin/python results/fraud_2/seed_spread.py
 """
 import sys
 from pathlib import Path
