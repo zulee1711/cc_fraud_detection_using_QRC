@@ -1,5 +1,9 @@
 # Credit-card fraud detection with Quantum Reservoir Computing
 
+[![tests](https://github.com/zulee1711/cc_fraud_detection_using_QRC/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/zulee1711/cc_fraud_detection_using_QRC/actions/workflows/tests.yml)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
+[![License: GPL v3](https://img.shields.io/badge/license-GPLv3-blue.svg)](LICENSE)
+
 This repository explores **Quantum Reservoir Computing (QRC)** for detecting fraudulent
 credit-card transactions. For every transaction, the customer's last few transactions form a
 window. A quantum reservoir processes the window, and a classical logistic readout is trained on
