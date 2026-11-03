@@ -91,7 +91,6 @@ python -m experiments.tune --study-name depth --objectives depth --size small --
 - [docs/tuning.md](docs/tuning.md): the Optuna search (objectives, search space, outputs).
 - [docs/data_pipeline.md](docs/data_pipeline.md): feature engineering, the feature catalog and the
   feature sets, preprocessing and windowing.
-- [docs/experiments.md](docs/experiments.md): the experiment plan (arms A, B, C) and objectives.
 
 ---
 
@@ -179,7 +178,7 @@ cc_fraud_detection_using_QRC/
 │   ├── tune.py              # Optuna hyperparameter search over cli.py's qrc
 │   ├── fraud_2/             # one folder per study: the scripts that run it (writes results/fraud_2/)
 │   └── tuned_3/             # equal-budget tuning, TFIM vs ESN (writes results/tuned_3/)
-├── docs/                    # CLI reference, tuning, data pipeline, experiment plan
+├── docs/                    # CLI reference, tuning, data pipeline
 ├── tests/                   # pytest suite
 ├── thelab/                  # reference QRC implementation (git submodule)
 ├── data/                    # train/validation/test splits (git-ignored)

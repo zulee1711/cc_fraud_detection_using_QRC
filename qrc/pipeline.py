@@ -45,7 +45,7 @@ from qrc.sequences import SPLITS, window_by_customer_id
 logger = get_logger(__name__)
 
 # Raw per-transaction input, no customer or terminal history: any memory must come from the window
-# (arm B, see docs/experiments.md).
+# (arm B).
 _SET_1 = ["TX_AMOUNT_LOG"]
 # Feature sets from the feature analysis (on train only). Each set extends the previous one.
 _SET_7 = [
