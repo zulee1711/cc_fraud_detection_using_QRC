@@ -62,9 +62,15 @@ NOISE_SEED_OFFSET = 10_000
 SHOT_SEED_OFFSET = 40_000
 
 
+# the observable-set study's script; results/observable_sets is not tracked, so it is only there locally
+DEPOLARIZING_SCRIPT = PROJECT_ROOT / "results" / "observable_sets" / "observables.py"
+
+
 def depolarizing_model():
     """The density-matrix simulator of the observable-set study (P2), loaded from its script."""
-    path = PROJECT_ROOT / "results" / "observable_sets" / "observables.py"
+    path = DEPOLARIZING_SCRIPT
+    if not path.exists():
+        raise FileNotFoundError(f"{path} not found: the depolarizing model needs the (untracked) observable-set study")
     spec = importlib.util.spec_from_file_location("observable_sets_p2", path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)

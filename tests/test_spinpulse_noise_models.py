@@ -8,14 +8,20 @@ from qiskit.quantum_info import PauliList
 
 pytest.importorskip("spin_pulse")
 
-from experiments.spinpulse_noise_models import depolarizing_features, depolarizing_model, main
+from experiments.spinpulse_noise_models import DEPOLARIZING_SCRIPT, depolarizing_features, depolarizing_model, main
 from qrc.backends.numpy_backend import NumpyBackend
 from qrc.encodings import AngleEncoding
 from qrc.hamiltonians import tfim
 from qrc.protocol import QRCProtocol
 from qrc.reservoirs import HamiltonianReservoir
 
+# results/observable_sets is not tracked: the depolarizing model is only available in a checkout that has it
+needs_depolarizing_model = pytest.mark.skipif(
+    not DEPOLARIZING_SCRIPT.exists(), reason=f"{DEPOLARIZING_SCRIPT} not present"
+)
 
+
+@needs_depolarizing_model
 def test_depolarizing_model_without_noise_is_the_ideal_circuit():
     """The bridge to the P2 simulator: at fidelity 1 it must reproduce NumpyBackend exactly
     (same reservoir, encoding, reset and qubit order)."""
@@ -38,6 +44,7 @@ def test_calibration_finds_a_t2_close_to_the_target(tmp_path, noise):
     assert float(row["f1"]) > float(row["f2"])  # 1q pulses are shorter, so less dephased
 
 
+@needs_depolarizing_model
 def test_compare_writes_one_row_per_model_precision_and_delay(tmp_path):
     calibration = tmp_path / "calibration.csv"
     calibration.write_text("noise,target_f2,t2_us,f2,f1,samples\n"
