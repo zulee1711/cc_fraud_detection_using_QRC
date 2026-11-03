@@ -298,6 +298,30 @@ def test_append_summary_upgrades_old_header(tmp_path):
     ]
 
 
+def test_append_summary_from_concurrent_threads(tmp_path):
+    """tune --n-jobs appends from several threads: one header, every row kept."""
+    import threading
+
+    path = tmp_path / "summary.csv"
+    barrier = threading.Barrier(16)
+
+    def append(i):
+        barrier.wait()  # all threads start together, on a file that does not exist yet
+        cli.append_summary(path, {"run": f"r{i}"})
+
+    threads = [threading.Thread(target=append, args=(i,)) for i in range(16)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    with open(path, newline="") as f:
+        reader = csv.DictReader(f)
+        runs = sorted(row["run"] for row in reader)
+    assert tuple(reader.fieldnames) == cli.SUMMARY_FIELDS
+    assert runs == sorted(f"r{i}" for i in range(16))
+
+
 def test_cli_runs_on_raw_amount_windows(tmp_path):
     """Arm B's input: the raw log amount only, no engineered history."""
     run_dir = main(["baseline", "--size", "small", "--feature-set", "1", "--window-length", "4",

@@ -41,6 +41,7 @@ import argparse
 import csv
 import json
 import subprocess
+import threading
 import time
 from datetime import datetime
 from pathlib import Path
@@ -247,27 +248,33 @@ def summary_row(args, data, metrics, reservoir_info, extra, run_name):
     return row
 
 
+# experiments/tune.py runs trials in threads (--n-jobs) that all append to the same summary.csv
+_SUMMARY_LOCK = threading.Lock()
+
+
 def append_summary(summary_path, row):
     """Append `row` to summary.csv, writing the header if the file is new.
 
     A file written with an older set of columns is first rewritten under the
     current header, so new columns never shift the values of later rows.
+    Safe to call from several threads of one process.
     """
-    write_header = not summary_path.exists()
-    if not write_header:
-        with open(summary_path, newline="") as f:
-            reader = csv.DictReader(f)
-            if tuple(reader.fieldnames or ()) != SUMMARY_FIELDS:
-                old_rows = list(reader)
-                with open(summary_path, "w", newline="") as out:
-                    writer = csv.DictWriter(out, fieldnames=SUMMARY_FIELDS, restval="")
-                    writer.writeheader()
-                    writer.writerows(old_rows)
-    with open(summary_path, "a", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=SUMMARY_FIELDS, restval="")
-        if write_header:
-            writer.writeheader()
-        writer.writerow(row)
+    with _SUMMARY_LOCK:
+        write_header = not summary_path.exists()
+        if not write_header:
+            with open(summary_path, newline="") as f:
+                reader = csv.DictReader(f)
+                if tuple(reader.fieldnames or ()) != SUMMARY_FIELDS:
+                    old_rows = list(reader)
+                    with open(summary_path, "w", newline="") as out:
+                        writer = csv.DictWriter(out, fieldnames=SUMMARY_FIELDS, restval="")
+                        writer.writeheader()
+                        writer.writerows(old_rows)
+        with open(summary_path, "a", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=SUMMARY_FIELDS, restval="")
+            if write_header:
+                writer.writeheader()
+            writer.writerow(row)
 
 
 def save_run(args, data, metrics, scores, extra, reservoir_info=None):
