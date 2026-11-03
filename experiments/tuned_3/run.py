@@ -1,6 +1,6 @@
 """Report section: TFIM (2 Trotter steps) vs an equal-width echo state network at equal tuning budget, L = 15.
 
-Follows results/fraud_2 (same data, encoding, readout, threshold and metrics, experiments.cli) and the protocol of
+Follows experiments/fraud_2 (same data, encoding, readout, threshold and metrics, experiments.cli) and the protocol of
 results/tuned_esn (Pandey, arXiv:2607.09905):
     - equal width: QRC read out with XYZ-strings on 4 qubits (45 observables), ESN with 45 units;
     - equal budget: one Optuna TPE study per model, same sampler seed, same number of trials (100), four
@@ -14,11 +14,13 @@ results/tuned_esn (Pandey, arXiv:2607.09905):
       and at 10⁵ / 10⁴ shots per window (experiments/fraud_2 shot model). Validation/test scores are kept for the
       operational metrics.
 
-Commands (from the repository root, PYTHONPATH=.):
-    tuned.py tune --model {tfim,esn} [--trials N] [--workers W] [--max-minutes M]
+Commands (from the repository root):
+    python -m experiments.tuned_3.run tune --model {tfim,esn} [--trials N] [--workers W] [--max-minutes M]
                                     resumable (study_<model>.db); no new trial starts after M minutes
-    tuned.py evaluate --model {tfim,esn} --seed S                   runs/<model>_tuned_s<S>.json, runs/scores/
-    tuned.py time                                                    seconds per TFIM trial (3 seeds in parallel)
+    python -m experiments.tuned_3.run evaluate --model {tfim,esn} --seed S    runs/<model>_tuned_s<S>.json, runs/scores/
+    python -m experiments.tuned_3.run time                     seconds per TFIM trial (3 seeds in parallel)
+The Optuna studies and the run records go to --results-dir (default results/tuned_3), where analyze.py and
+operational.py turn them into tables and figures.
 """
 import argparse
 import json
@@ -30,6 +32,7 @@ import numpy as np
 from qiskit.quantum_info import SparsePauliOp
 
 from experiments import cli
+from experiments.cli import PROJECT_ROOT
 from experiments.fraud_2 import run as fraud
 from qrc import pipeline
 from qrc.backends.numpy_backend import NumpyBackend
@@ -38,8 +41,7 @@ from qrc.hamiltonians import Hamiltonian, tfim
 from qrc.readout import ClassicalReadout
 
 
-HERE = Path("results/3_tuned")
-RUNS = HERE / "runs"
+RESULTS = PROJECT_ROOT / "results" / "tuned_3"
 L = 15
 READOUT = "XYZ-strings"
 N_UNITS = 45  # = XYZ-strings observables on 4 qubits
@@ -122,12 +124,12 @@ def validation_customer_ap(model, params, seed):
     return category_metrics(data["y_validation"], scores, data["category_validation"])["average_precision_customer"]
 
 
-def study(model):
+def study(model, results=RESULTS):
     """The model's Optuna study. The sampler seed is SAMPLER_SEED plus the trials already stored, so a resumed
     study does not replay the random draws of its first session (an uninterrupted study uses SAMPLER_SEED)."""
     import optuna
 
-    storage = f"sqlite:///{HERE / f'study_{model}.db'}"
+    storage = f"sqlite:///{results / f'study_{model}.db'}"
     try:
         n = len(optuna.load_study(study_name=model, storage=storage).trials)
     except KeyError:
@@ -136,11 +138,11 @@ def study(model):
                                sampler=optuna.samplers.TPESampler(seed=SAMPLER_SEED + n))
 
 
-def tune(model, trials, workers, max_minutes=None):
+def tune(model, trials, workers, max_minutes=None, results=RESULTS):
     import optuna
 
     start = time.perf_counter()
-    s = study(model)
+    s = study(model, results)
     if not s.trials:
         s.enqueue_trial(REFERENCE[model])
     for t in s.trials:  # a trial cut off by a timeout is retried, not counted
@@ -163,14 +165,14 @@ def tune(model, trials, workers, max_minutes=None):
                   f"(best {s.best_value:.4f}, {time.perf_counter() - t0:.0f} s)", flush=True)
 
 
-def evaluate(model, seed):
-    path = RUNS / f"{model}_tuned_s{seed}.json"
+def evaluate(model, seed, results=RESULTS):
+    path = results / "runs" / f"{model}_tuned_s{seed}.json"
     if path.exists():
         print(f"{path.name}: exists, skipped")
         return
     import optuna
 
-    s = study(model)
+    s = study(model, results)
     params = dict(s.best_params)
     n_trials = sum(t.state == optuna.trial.TrialState.COMPLETE for t in s.trials)
     data, args = load_data(), cli_args(model, params, seed)
@@ -188,7 +190,7 @@ def evaluate(model, seed):
         records.append(dict(model=model, L=L, seed=seed, params=params, n_trials=n_trials, observables=READOUT,
                             budget=budget, n_features=feats["train"].shape[1], reservoir_seconds=seconds,
                             metrics=metrics))
-        np.savez_compressed(RUNS / "scores" / f"{model}_tuned_s{seed}_{budget or 'exact'}.npz",
+        np.savez_compressed(results / "runs" / "scores" / f"{model}_tuned_s{seed}_{budget or 'exact'}.npz",
                             **{f"scores_{k}": v for k, v in scores.items()})
     path.write_text(json.dumps(records, indent=1))
     print(f"{path.name}: test customer AP {records[0]['metrics']['test']['average_precision_customer']:.3f}")
@@ -211,11 +213,12 @@ if __name__ == "__main__":
     parser.add_argument("--workers", type=int, default=len(TUNE_SEEDS))
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--max-minutes", type=float, help="tune: start no new trial after this")
+    parser.add_argument("--results-dir", type=Path, default=RESULTS, help="where the studies and runs/ are written")
     a = parser.parse_args()
-    (RUNS / "scores").mkdir(parents=True, exist_ok=True)
+    (a.results_dir / "runs" / "scores").mkdir(parents=True, exist_ok=True)
     if a.command == "tune":
-        tune(a.model, a.trials, a.workers, a.max_minutes)
+        tune(a.model, a.trials, a.workers, a.max_minutes, a.results_dir)
     elif a.command == "evaluate":
-        evaluate(a.model, a.seed)
+        evaluate(a.model, a.seed, a.results_dir)
     else:
         time_trial()

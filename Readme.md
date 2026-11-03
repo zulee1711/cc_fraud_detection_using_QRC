@@ -177,7 +177,8 @@ cc_fraud_detection_using_QRC/
 │   ├── cli.py               # ← the experiment runner
 │   ├── sweep.py             # many cli.py commands, data prepared once
 │   ├── tune.py              # Optuna hyperparameter search over cli.py's qrc
-│   └── fraud_2/             # one folder per study: the scripts that run it (writes results/fraud_2/)
+│   ├── fraud_2/             # one folder per study: the scripts that run it (writes results/fraud_2/)
+│   └── tuned_3/             # equal-budget tuning, TFIM vs ESN (writes results/tuned_3/)
 ├── docs/                    # CLI reference, tuning, data pipeline, experiment plan
 ├── tests/                   # pytest suite
 ├── thelab/                  # reference QRC implementation (git submodule)
