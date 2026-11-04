@@ -9,6 +9,7 @@ import optuna
 import pytest
 
 import experiments.cli as cli
+from qrc import pipeline
 from experiments import tune
 
 
@@ -47,7 +48,7 @@ def test_infeasible_encodings_are_dropped():
     assert tune.feasible_encodings(tune.ENCODINGS, 7, 9) == list(tune.ENCODINGS)
 
 
-def test_study_runs_saves_and_resumes(tmp_path):
+def test_study_runs_saves_and_resumes(tmp_path, stub_reservoir):
     argv = [
         "--n-trials",
         "2",
@@ -92,7 +93,7 @@ def test_study_runs_saves_and_resumes(tmp_path):
     assert (study_dir / "trials.csv").exists()
 
 
-def test_shots_objective_searches_precision(tmp_path):
+def test_shots_objective_searches_precision(tmp_path, stub_reservoir):
     study = tune.main(
         [
             "--n-trials",
@@ -137,7 +138,7 @@ def test_circuit_cost_counts_window_and_routing():
         args = cli.build_parser().parse_args(
             ["qrc", "--hamiltonian", "tfim", "--topology", topology, "--n-mem-qubits", "2"]
         )
-        protocol, _ = cli.build_protocol(args)
+        protocol, _ = pipeline.build_protocol(args)
         return tune.circuit_cost(protocol, window_length, n_features=7, reset_inputs=False)
 
     linear = cost(3, "linear")
@@ -181,13 +182,13 @@ def test_qrc_cli_resolves_encoding(monkeypatch, flags, encoding):
         def run(self, windows):
             return np.zeros((len(windows), 1))
 
-    monkeypatch.setattr(cli, "QRCProtocol", RecordingProtocol)
-    monkeypatch.setattr(cli, "make_backend", lambda *args: args)
+    monkeypatch.setattr(pipeline, "QRCProtocol", RecordingProtocol)
+    monkeypatch.setattr(pipeline, "make_backend", lambda *args: args)
     data = {
         f"X_{split}": np.zeros((1, 1, 7)) for split in ("train", "validation", "test")
     }
 
-    _, reservoir_info = cli.qrc_features(data, args)
+    _, reservoir_info = pipeline.qrc_features(data, args)
 
     assert reservoir_info["encoding"] == encoding
     assert reservoir_info["evolution_time"] == 0.5
@@ -203,7 +204,7 @@ def test_category_metric_without_such_frauds_is_refused(tmp_path):
     assert not optuna.get_all_study_summaries(f"sqlite:///{tmp_path / 'qrc' / 'study.db'}")
 
 
-def test_trials_run_in_parallel_threads(tmp_path):
+def test_trials_run_in_parallel_threads(tmp_path, stub_reservoir):
     study = tune.main(
         [
             "--n-trials",

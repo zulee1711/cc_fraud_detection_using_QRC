@@ -10,6 +10,8 @@ def build_observables(specs: Union[str, List[str]], num_qubits: int) -> PauliLis
     - Two-body : "XX", "YY", "ZZ", "XYZ-2body"
     - Topology : "-all" for all pairs (eg. "XX-all")
                  "-nearest" for 1D chain correlations (default)
+    - Strings : "XYZ-strings", every Pauli string made of a single letter on any non-empty
+                set of qubits (3 * (2**n - 1) observables, read out in 3 bases)
 
     Input : a specification string from the ones above
 
@@ -50,6 +52,15 @@ def build_observables(specs: Union[str, List[str]], num_qubits: int) -> PauliLis
     observables = []
 
     for token in tokens:
+        if token == "XYZ-strings":
+            # qubit k carries the letter iff bit k of m is set; same order as experiments/fraud_2
+            for letter in "XYZ":
+                for m in range(1, 2**num_qubits):
+                    observables.append(
+                        _make_pauli(num_qubits, {k: letter for k in range(num_qubits) if m >> k & 1})
+                    )
+            continue
+
         # Determine topology if present
         if token.endswith("-all"):
             topology = "all"

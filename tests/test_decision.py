@@ -1,4 +1,3 @@
-#%%
 import numpy as np
 import pandas as pd
 import pytest
@@ -12,7 +11,6 @@ from qrc.decision import (
     select_thresholds_min_fp,
 )
 
-#%%
 def test_threshold_minimizes_false_positives_subject_to_recall():
     # To keep recall >= 0.8 with two frauds, both frauds must be detected.
     # Threshold 0.6 does that with one false positive; lower thresholds add
@@ -29,7 +27,6 @@ def test_threshold_minimizes_false_positives_subject_to_recall():
     assert np.sum((predictions == 1) & (y == 0)) == 1
     assert np.sum((predictions == 1) & (y == 1)) == 2
 
-#%%
 def test_threshold_can_trade_recall_for_zero_false_positives():
     y = np.array([1, 1, 0, 0, 0])
     scores = np.array([0.9, 0.6, 0.7, 0.5, 0.1])
@@ -38,7 +35,6 @@ def test_threshold_can_trade_recall_for_zero_false_positives():
 
     assert threshold == pytest.approx(0.9)
 
-#%%
 def test_threshold_handles_tied_scores_as_one_candidate():
     y = np.array([1, 0, 1, 0])
     scores = np.array([0.9, 0.8, 0.8, 0.2])
@@ -47,7 +43,6 @@ def test_threshold_handles_tied_scores_as_one_candidate():
 
     assert threshold == pytest.approx(0.8)
 
-#%%
 def test_threshold_prefers_higher_recall_when_false_positives_tie():
     y = np.array([1, 1, 1, 0, 0])
     scores = np.array([0.9, 0.8, 0.7, 0.6, 0.5])
@@ -58,7 +53,6 @@ def test_threshold_prefers_higher_recall_when_false_positives_tie():
     # but 0.7 also has 0 FP and gives higher recall.
     assert threshold == pytest.approx(0.7)
 
-#%%
 def test_multiple_thresholds_match_individual_threshold_selection():
     y = np.array([1, 1, 1, 0, 0, 0])
     scores = np.array([0.95, 0.80, 0.55, 0.90, 0.40, 0.10])
@@ -71,7 +65,6 @@ def test_multiple_thresholds_match_individual_threshold_selection():
         expected_threshold = select_threshold_min_fp(y, scores, min_recall=min_recall)
         assert thresholds[min_recall] == pytest.approx(expected_threshold)
 
-#%%
 def test_multiple_thresholds_remove_duplicate_recall_constraints():
     y = np.array([1, 1, 0])
     scores = np.array([0.9, 0.8, 0.1])
@@ -80,7 +73,6 @@ def test_multiple_thresholds_remove_duplicate_recall_constraints():
 
     assert set(result) == {0.5, 1.0}
 
-#%%
 def test_threshold_validation():
     with pytest.raises(ValueError):
         select_threshold_min_fp(
@@ -118,7 +110,6 @@ def test_threshold_validation():
         )
 
 
-#%%
 def test_card_precision_top_k_groups_multiple_transactions_from_same_card():
     y = np.array([1, 0, 0, 1, 0, 1, 1])
     scores = np.array([0.9, 0.8, 0.7, 0.6, 0.2, 0.9, 0.8])
@@ -140,7 +131,6 @@ def test_card_precision_top_k_groups_multiple_transactions_from_same_card():
 
     assert result == pytest.approx(0.75)
 
-#%%
 def test_card_precision_top_k_divides_by_k_when_fewer_than_k_cards():
     y = np.array([1, 0])
     scores = np.array([0.9, 0.8])
@@ -158,7 +148,6 @@ def test_card_precision_top_k_divides_by_k_when_fewer_than_k_cards():
     # K is the review capacity: one fraud among 10 slots
     assert result == pytest.approx(0.1)
 
-#%%
 def test_card_precision_top_k_is_deterministic_for_tied_scores():
     y = np.array([1, 0])
     scores = np.array([0.8, 0.8])
@@ -175,7 +164,6 @@ def test_card_precision_top_k_is_deterministic_for_tied_scores():
 
     assert result == pytest.approx(1.0)
 
-#%%
 def test_multiple_card_precision_top_ks_match_individual_calls():
     y = np.array([1, 0, 0, 1, 0, 1, 1])
     scores = np.array([0.9, 0.8, 0.7, 0.6, 0.2, 0.9, 0.8])
@@ -203,7 +191,6 @@ def test_multiple_card_precision_top_ks_match_individual_calls():
 
         assert results[top_k] == pytest.approx(expected)
 
-#%%
 def test_card_precision_multiple_k_expected_values():
     y = np.array([1, 0, 0, 1, 0, 1, 1])
 
@@ -234,7 +221,6 @@ def test_card_precision_multiple_k_expected_values():
     # Day 2: D fraud, E fraud, A removed -> 2/10
     assert results[10] == pytest.approx(0.2)
 
-#%%
 def test_card_precision_removes_detected_compromised_cards():
     # Card A is fraudulent and top-ranked on both days.
     y = np.array([1, 0, 1, 0])
@@ -253,7 +239,6 @@ def test_card_precision_removes_detected_compromised_cards():
         y, scores, customers, timestamps, top_k=1, remove_detected=False
     ) == pytest.approx(1.0)
 
-#%%
 def test_card_precision_genuine_cards_are_not_removed():
     # A is reviewed on day 1 but genuine, so it stays in the ranking on day 2.
     y = np.array([0, 1, 1])
@@ -268,7 +253,6 @@ def test_card_precision_genuine_cards_are_not_removed():
 
     assert result == pytest.approx(0.5)
 
-#%%
 def _handbook_card_precision_top_k(y, scores, customers, days, top_k):
     """Direct port of the Fraud Detection Handbook's ``card_precision_top_k``."""
     df = pd.DataFrame(
@@ -289,7 +273,6 @@ def _handbook_card_precision_top_k(y, scores, customers, days, top_k):
         detected.extend(found)
     return np.mean(daily)
 
-#%%
 @pytest.mark.parametrize("top_k", [1, 3, 10, 40])
 def test_card_precision_matches_handbook_implementation(top_k):
     rng = np.random.default_rng(0)
@@ -307,20 +290,17 @@ def test_card_precision_matches_handbook_implementation(top_k):
         _handbook_card_precision_top_k(y, scores, customers, days, top_k)
     )
 
-#%%
 def test_card_precision_empty_input_returns_nan():
     result = card_precision_top_k([], [], [], [], top_k=5)
 
     assert np.isnan(result)
 
-#%%
 def test_multiple_card_precision_empty_input_returns_nan():
     result = card_precision_top_ks([], [], [], [], top_ks=[1, 5, 10])
 
     assert set(result) == {1, 5, 10}
     assert all(np.isnan(v) for v in result.values())
 
-#%%
 def test_card_precision_validation():
     # Single-K validation
     with pytest.raises(ValueError):
@@ -369,7 +349,6 @@ def test_card_precision_validation():
             top_ks=[1, 0, 5],
         )
 
-#%%
 def test_max_recall_threshold_respects_the_false_positive_budget():
     # Five negatives: a 20 % budget allows one false positive. Threshold 0.6 catches
     # both frauds with one false positive (0.7); 0.5 would add a second one.
@@ -380,7 +359,6 @@ def test_max_recall_threshold_respects_the_false_positive_budget():
     # no false positive allowed: only the fraud above every negative is caught
     assert select_threshold_max_recall(y, scores, max_fpr=0.1) == pytest.approx(0.9)
 
-#%%
 def test_max_recall_threshold_prefers_fewer_false_positives_at_equal_recall():
     # 0.6 and 0.55 have the same recall; 0.55 adds a false positive (0.58)
     y = np.array([1, 1, 0, 0, 0, 0])
@@ -388,7 +366,6 @@ def test_max_recall_threshold_prefers_fewer_false_positives_at_equal_recall():
 
     assert select_threshold_max_recall(y, scores, max_fpr=0.5) == pytest.approx(0.6)
 
-#%%
 def test_max_recall_thresholds_match_brute_force():
     rng = np.random.default_rng(0)
     for _ in range(50):

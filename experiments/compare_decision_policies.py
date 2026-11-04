@@ -27,6 +27,7 @@ from sklearn.metrics import (
 )
 
 from experiments import cli
+from qrc import pipeline
 from qrc.baselines.lstm import run_lstm_baseline
 from qrc.decision import card_precision_top_ks, select_thresholds_min_fp
 from qrc.readout import ClassicalReadout
@@ -48,12 +49,12 @@ def parse_args() -> argparse.Namespace:
 
     # Shared data options.
     parser.add_argument("--data", choices=("simulate", "load"), default="simulate")
-    parser.add_argument("--size", choices=tuple(cli.SIZES), default="medium")
+    parser.add_argument("--size", choices=tuple(pipeline.SIZES), default="medium")
     parser.add_argument("--data-seed", type=int, default=0)
     parser.add_argument("--data-dir", type=Path, default=cli.PROJECT_ROOT / "data")
     parser.add_argument("--start-date", default=None)
     parser.add_argument("--end-date", default=None)
-    parser.add_argument("--feature-set", type=int, choices=tuple(cli.FEATURE_SETS), default=7)
+    parser.add_argument("--feature-set", type=int, choices=tuple(pipeline.FEATURE_SETS), default=7)
     parser.add_argument("--window-length", type=int, default=3)
 
     # Decision-policy sweep.
@@ -82,7 +83,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--alpha", type=float, default=1.0)
 
     # QRC options.
-    parser.add_argument("--backend", choices=cli.BACKEND_NAMES, default="estimator-exact")
+    parser.add_argument("--backend", choices=pipeline.BACKEND_NAMES, default="estimator-exact")
     parser.add_argument("--precision", type=float, default=0.05)
     parser.add_argument("--n-input-qubits", type=int, default=None)
     parser.add_argument("--encoding-layers", type=int, default=1)
@@ -148,8 +149,8 @@ def prepare_shared_data(args: argparse.Namespace) -> dict:
     # parser gives us a correctly shaped Namespace without duplicating project
     # defaults here.
     parsed = cli.build_parser().parse_args(_common_cli_argv(args, "baseline"))
-    data = cli.prepare_data(parsed)
-    cli.print_data_summary(data)
+    data = pipeline.prepare_data(parsed)
+    pipeline.print_data_summary(data)
     return data
 
 
@@ -194,10 +195,10 @@ def classical_scores(features: dict, data: dict, alpha: float) -> dict[str, np.n
 
 def score_model(model: str, data: dict, args: argparse.Namespace) -> dict[str, np.ndarray]:
     if model == "baseline":
-        return classical_scores(cli.baseline_features(data), data, args.alpha)
+        return classical_scores(pipeline.baseline_features(data), data, args.alpha)
 
     if model == "qrc":
-        features, _ = cli.qrc_features(data, _qrc_args(args))
+        features, _ = pipeline.qrc_features(data, _qrc_args(args))
         return classical_scores(features, data, args.alpha)
 
     # Train LSTM only once. min_recall affects only threshold selection after

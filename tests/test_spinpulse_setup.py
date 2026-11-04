@@ -13,6 +13,7 @@ from qiskit.quantum_info import PauliList
 pytest.importorskip("spin_pulse")
 
 import experiments.cli as cli
+from qrc import pipeline
 from qrc.backends.spinpulse import SpinPulseBackend, SpinPulseConfig
 from qrc.encodings import AngleEncoding
 from qrc.reservoirs import RandomCircuitReservoir
@@ -87,7 +88,7 @@ def test_cli_options_reach_the_spinpulse_config():
             "--reset-inputs",
         ]
     )
-    config = cli.spinpulse_config(args)
+    config = pipeline.spinpulse_config(args)
     assert config == SpinPulseConfig(
         noise_type="quasistatic",
         T2S=500.0,
@@ -100,7 +101,7 @@ def test_cli_options_reach_the_spinpulse_config():
         seed=5,
     )
 
-    backend = cli.make_backend(
+    backend = pipeline.make_backend(
         args.backend, args.precision, args.seed, args.reset_inputs, config
     )
     assert isinstance(backend, SpinPulseBackend)

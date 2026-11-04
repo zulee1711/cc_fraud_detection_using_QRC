@@ -83,8 +83,8 @@ def dissipation(logistic, reset, exact):
     lengths = [5, 8, 10]
     reset_l = reset[reset["window_length"].isin(lengths)]
     panels = [
-        (f"{SPLIT}_average_precision_customer", "Customer-compromise AP\n(needs memory of past tx)"),
-        (f"{SPLIT}_average_precision_amount", "Amount AP\n(needs the current tx)"),
+        (f"{SPLIT}_average_precision_customer", "Customer AP"),
+        (f"{SPLIT}_average_precision_amount", "Amount AP"),
     ]
     for ax, (metric, title) in zip(axes, panels):
         ax.plot(lengths, logistic.loc[lengths, metric], color=LOGISTIC, lw=1.5, ls="--", marker="s", ms=5,
@@ -100,14 +100,15 @@ def dissipation(logistic, reset, exact):
         ax.set_xlabel("window length L")
     axes[0].set_ylabel(f"{SPLIT} AP")
     fig.legend(*axes[0].get_legend_handles_labels(), loc="upper left", bbox_to_anchor=(0.02, -0.01), ncol=3)
-    axes[0].axvspan(4.5, 6.5, color=GRID, alpha=0.5, lw=0, zorder=0)
-    axes[0].text(5.5, axes[0].get_ylim()[0] + 0.005, "no-reset\nstill viable", ha="center", va="bottom",
-                 fontsize=8, color=MUTED)
-    fig.suptitle("Without in-window dissipation the reservoir loses the current transaction and stops improving with L",
+    title = fig.suptitle("Without in-window dissipation the reservoir loses the current transaction and stops improving with L",
                  x=0.02, y=1.06, ha="left", fontsize=11, color=TEXT)
-    fig.text(0.02, -0.13, "1 input + 3 memory qubits, depth 4, XYZ+XYZ-2body, exact. Dots: seeds 42-44; line: mean.",
+    note = fig.text(0.02, -0.13, "1 input + 3 memory qubits, depth 4, XYZ+XYZ-2body, exact. Dots: seeds 42-44; line: mean.",
              fontsize=8, color=MUTED)
     fig.savefig(OUT / f"dissipation{suffix()}.png")
+    # PDF for the report: title and setup note go in the LaTeX caption instead.
+    title.remove()
+    note.remove()
+    fig.savefig(OUT / f"dissipation{suffix()}.pdf")
     plt.close(fig)
 
 

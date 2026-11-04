@@ -37,6 +37,7 @@ from qiskit import transpile
 from qiskit.transpiler import CouplingMap
 
 import experiments.cli as cli
+from qrc import pipeline
 from qrc.backends.estimator import window_circuit
 from qrc.hamiltonians import HamiltonianTopology
 
@@ -74,7 +75,7 @@ TRANSPILE = dict(
 )
 
 ENCODINGS = ("angle", "dense", "reupload")
-HAMILTONIANS = ("random", *cli.HAMILTONIAN_BUILDERS)
+HAMILTONIANS = ("random", *pipeline.HAMILTONIAN_BUILDERS)
 TOPOLOGIES = tuple(topology.value for topology in HamiltonianTopology)
 
 # The qrc options the search sets; passing one of them through is an error.
@@ -198,12 +199,12 @@ def objective(trial, base_args, data, search, metric, seeds, objectives):
             **{**vars(base_args), **params, "seed": seed, "optuna_trial": trial.number}
         )
         start = time.perf_counter()
-        features, reservoir_info = cli.qrc_features(data, args)
+        features, reservoir_info = pipeline.qrc_features(data, args)
         seconds.append(time.perf_counter() - start)
-        metrics, scores = cli.fit_and_evaluate(
+        metrics, scores = pipeline.fit_and_evaluate(
             features, data, args.alpha, args.min_recall
         )
-        cli.add_derived_metrics(metrics, scores, data, args.top_k)
+        pipeline.add_derived_metrics(metrics, scores, data, args.top_k)
         extra = {"reservoir_seconds": seconds[-1]}
         run_dirs.append(
             cli.save_run(args, data, metrics, scores, extra, reservoir_info).name
@@ -211,7 +212,7 @@ def objective(trial, base_args, data, search, metric, seeds, objectives):
         results.append(metrics)
 
     # The costs do not depend on the data; take them from the first seed's circuit
-    protocol, _ = cli.build_protocol(
+    protocol, _ = pipeline.build_protocol(
         argparse.Namespace(**{**vars(base_args), **params, "seed": seeds[0]})
     )
     precision = params.get("precision", base_args.precision)
@@ -231,7 +232,7 @@ def objective(trial, base_args, data, search, metric, seeds, objectives):
     trial.set_user_attr("run_dirs", run_dirs)
     for name, value in costs.items():
         trial.set_user_attr(name, value)
-    for split in cli.EVAL_SPLITS:
+    for split in pipeline.EVAL_SPLITS:
         for name in results[0][split]:
             trial.set_user_attr(
                 f"{split}_{name}", float(np.mean([m[split][name] for m in results]))
@@ -271,7 +272,7 @@ def build_parser():
     )
     parser.add_argument(
         "--metric",
-        choices=(*cli.METRIC_NAMES, *cli.CATEGORY_METRIC_NAMES),
+        choices=(*pipeline.METRIC_NAMES, *pipeline.CATEGORY_METRIC_NAMES),
         default="average_precision",
         help="validation metric to maximise; the per-category ones need data with "
         "fraud scenarios",
@@ -315,7 +316,7 @@ def build_parser():
         type=int,
         default=1,
         help="trials run in parallel threads, sharing the prepared data. Speeds up the "
-        "numpy backend and gaussian with --simulator numpy (numpy releases the GIL); the Aer "
+        "numpy backend and gaussian or shots with --simulator numpy (numpy releases the GIL); the Aer "
         "backends gain nothing",
     )
     return parser
@@ -344,7 +345,7 @@ def main(argv=None):
             f"searched by the tuner, remove from the command line: {', '.join(fixed)}"
         )
 
-    n_features = len(cli.FEATURE_SETS[base_args.feature_set])
+    n_features = len(pipeline.FEATURE_SETS[base_args.feature_set])
     encodings = feasible_encodings(args.encodings, n_features, args.max_qubits)
     if not encodings:
         raise SystemExit(
@@ -386,6 +387,8 @@ def main(argv=None):
             k: str(v) if isinstance(v, Path) else v
             for k, v in vars(base_args).items()
             if k not in (*searched, "seed", "output_dir")
+            # at its default, an option added later must not block resuming an older study
+            and not (k == "field" and v == 1.0)
         },
         "metric": args.metric,
         "objectives": objectives,
@@ -404,9 +407,9 @@ def main(argv=None):
             + json.dumps(study.user_attrs["setup"], indent=2)
         )
 
-    data = cli.prepare_data(base_args)
-    cli.print_data_summary(data)
-    if args.metric in cli.CATEGORY_METRIC_NAMES:
+    data = pipeline.prepare_data(base_args)
+    pipeline.print_data_summary(data)
+    if args.metric in pipeline.CATEGORY_METRIC_NAMES:
         # The per-category AP is undefined (NaN) without frauds of that category
         category = args.metric.removeprefix("average_precision_")
         n_frauds = data["summary"]["validation"].get(f"frauds_{category}", 0)

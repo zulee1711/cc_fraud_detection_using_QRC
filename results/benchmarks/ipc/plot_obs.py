@@ -32,8 +32,9 @@ SERIES = [
     ("shots", "0.1", "Shots (precision 0.1)"),
 ]
 
-FIGURE_NAME = "ipc_observables_normalized.png"
-DEGREE_FIGURE_NAME = "ipc_observables_normalized_degrees.png"
+FIGURE_NAME = "ipc_observables_normalized.pdf"
+DEGREE_FIGURE_NAME = "ipc_observables_normalized_degrees.pdf"
+ABSOLUTE_FIGURE_NAME = "ipc_observables_absolute_degrees.pdf"
 
 DPI = 200
 SHOW_PLOTS = True
@@ -54,6 +55,7 @@ def parse_filename(path):
         name,
         re.IGNORECASE,
     )
+
     if not match:
         return None
 
@@ -84,6 +86,7 @@ def parse_filename(path):
 
     for candidate in sorted(HAMILTONIANS, key=len, reverse=True):
         prefix = candidate + "_"
+
         if rest.startswith(prefix):
             hamiltonian = candidate
             observable = rest[len(prefix) :]
@@ -100,6 +103,7 @@ def parse_filename(path):
         "Z+ZZ": "Z+ZZ",
         "XYZ": "XYZ",
     }
+
     observable = aliases.get(observable, observable)
 
     return {
@@ -112,22 +116,19 @@ def parse_filename(path):
 
 
 # ================================================================
-# Read normalized IPC values
+# Read IPC values
 # ================================================================
 
 
 def read_log_values(path, config):
     """
-    Extract normalized total capacity and normalized degree
-    capacities from IPC JSON blocks.
-
-    Returns a list of (precision, metrics) pairs.
+    Extract normalized and absolute IPC values from IPC JSON blocks.
 
     Each metrics dictionary contains the available values:
-        total
-        degree_1
-        degree_2
-        degree_3
+        normalized_total
+        normalized_degree_1, normalized_degree_2, normalized_degree_3
+        absolute_total
+        absolute_degree_1, absolute_degree_2, absolute_degree_3
     """
 
     try:
@@ -156,22 +157,35 @@ def read_log_values(path, config):
 
         metrics = {}
 
-        total = data.get("normalized_total_capacity")
-        if total is not None:
-            metrics["total"] = float(total)
-
-        for degree in range(1, 4):
-            key = f"normalized_degree_{degree}"
-            value = data.get(key)
+        # Total capacity
+        for source_key, target_key in [
+            ("normalized_total_capacity", "normalized_total"),
+            ("total_capacity", "absolute_total"),
+        ]:
+            value = data.get(source_key)
 
             if value is not None:
-                metrics[f"degree_{degree}"] = float(value)
+                metrics[target_key] = float(value)
+
+        # Individual degree capacities
+        for degree in range(1, 4):
+            for prefix, output_prefix in [
+                ("normalized_", "normalized_"),
+                ("", "absolute_"),
+            ]:
+                source_key = f"{prefix}degree_{degree}"
+                target_key = f"{output_prefix}degree_{degree}"
+
+                value = data.get(source_key)
+
+                if value is not None:
+                    metrics[target_key] = float(value)
 
         if metrics:
             parsed.append(metrics)
 
     if not parsed:
-        warnings.warn(f"No normalized IPC values found in {path}")
+        warnings.warn(f"No usable IPC values found in {path}")
         return []
 
     if config["backend"] == "estimator-exact":
@@ -183,9 +197,7 @@ def read_log_values(path, config):
         return [(precisions[0], parsed[0])]
 
     if len(precisions) > 1 and len(parsed) == len(precisions):
-        warnings.warn(
-            f"{path.name}: matching normalized IPC values to " "precisions by order."
-        )
+        warnings.warn(f"{path.name}: matching IPC values to precisions by order.")
         return list(zip(precisions, parsed))
 
     if len(precisions) == 1:
@@ -195,6 +207,7 @@ def read_log_values(path, config):
         f"Cannot match {len(parsed)} IPC block(s) "
         f"to precisions {precisions} in {path.name}; skipping."
     )
+
     return []
 
 
@@ -205,27 +218,36 @@ def read_log_values(path, config):
 
 def load_observable_results(root=ROOT):
     """
-    Returns:
+    Returns four dictionaries:
 
-    total_results:
-        total_results[(observable, hamiltonian, backend, precision)]
-            = list of normalized total capacities across seeds.
+    normalized_total_results:
+        (observable, hamiltonian, backend, precision) -> values
 
-    degree_results:
-        degree_results[(degree, observable, hamiltonian, backend, precision)]
-            = list of normalized degree capacities across seeds.
+    normalized_degree_results:
+        (degree, observable, hamiltonian, backend, precision) -> values
+
+    absolute_total_results:
+        (observable, hamiltonian, backend, precision) -> values
+
+    absolute_degree_results:
+        (degree, observable, hamiltonian, backend, precision) -> values
     """
 
     if not root.exists():
         raise FileNotFoundError(f"Log directory not found: {root}")
 
-    total_results = defaultdict(list)
-    degree_results = defaultdict(list)
+    normalized_total_results = defaultdict(list)
+    normalized_degree_results = defaultdict(list)
+
+    absolute_total_results = defaultdict(list)
+    absolute_degree_results = defaultdict(list)
 
     files = sorted(root.rglob("*.txt"))
 
-    loaded_total = 0
-    loaded_degrees = 0
+    loaded_normalized_total = 0
+    loaded_normalized_degrees = 0
+    loaded_absolute_total = 0
+    loaded_absolute_degrees = 0
     skipped = 0
 
     print(f"Found {len(files)} log files in {root}\n")
@@ -264,8 +286,11 @@ def load_observable_results(root=ROOT):
             else:
                 precision = None
 
+            # ----------------------------------------------------
             # Normalized total capacity
-            if "total" in metrics:
+            # ----------------------------------------------------
+
+            if "normalized_total" in metrics:
                 key = (
                     config["observable"],
                     config["hamiltonian"],
@@ -273,12 +298,15 @@ def load_observable_results(root=ROOT):
                     precision,
                 )
 
-                total_results[key].append(metrics["total"])
-                loaded_total += 1
+                normalized_total_results[key].append(metrics["normalized_total"])
+                loaded_normalized_total += 1
 
+            # ----------------------------------------------------
             # Normalized individual degrees
+            # ----------------------------------------------------
+
             for degree in range(1, 4):
-                metric = f"degree_{degree}"
+                metric = f"normalized_degree_{degree}"
 
                 if metric not in metrics:
                     continue
@@ -291,14 +319,57 @@ def load_observable_results(root=ROOT):
                     precision,
                 )
 
-                degree_results[key].append(metrics[metric])
-                loaded_degrees += 1
+                normalized_degree_results[key].append(metrics[metric])
+                loaded_normalized_degrees += 1
 
-    print(f"\nLoaded normalized total IPC values: {loaded_total}")
-    print(f"Loaded normalized degree values: {loaded_degrees}")
+            # ----------------------------------------------------
+            # Absolute total capacity
+            # ----------------------------------------------------
+
+            if "absolute_total" in metrics:
+                key = (
+                    config["observable"],
+                    config["hamiltonian"],
+                    config["backend"],
+                    precision,
+                )
+
+                absolute_total_results[key].append(metrics["absolute_total"])
+                loaded_absolute_total += 1
+
+            # ----------------------------------------------------
+            # Absolute individual degrees
+            # ----------------------------------------------------
+
+            for degree in range(1, 4):
+                metric = f"absolute_degree_{degree}"
+
+                if metric not in metrics:
+                    continue
+
+                key = (
+                    degree,
+                    config["observable"],
+                    config["hamiltonian"],
+                    config["backend"],
+                    precision,
+                )
+
+                absolute_degree_results[key].append(metrics[metric])
+                loaded_absolute_degrees += 1
+
+    print(f"\nLoaded normalized total IPC values: {loaded_normalized_total}")
+    print(f"Loaded normalized degree values: {loaded_normalized_degrees}")
+    print(f"Loaded absolute total IPC values: {loaded_absolute_total}")
+    print(f"Loaded absolute degree values: {loaded_absolute_degrees}")
     print(f"Skipped files/values: {skipped}")
 
-    return total_results, degree_results
+    return (
+        normalized_total_results,
+        normalized_degree_results,
+        absolute_total_results,
+        absolute_degree_results,
+    )
 
 
 # ================================================================
@@ -311,6 +382,7 @@ def plot_metric(
     observable,
     metric,
     results,
+    normalized=True,
     show_std=True,
 ):
     """
@@ -318,6 +390,10 @@ def plot_metric(
 
     metric:
         "total", "degree_1", "degree_2", or "degree_3"
+
+    normalized:
+        True  -> normalized IPC, y-axis fixed to [0, 1]
+        False -> absolute IPC, y-axis automatically scaled
     """
 
     n_series = len(SERIES)
@@ -355,13 +431,13 @@ def plot_metric(
 
             if values:
                 means.append(float(np.mean(values)))
+
                 errors.append(float(np.std(values, ddof=1)) if len(values) > 1 else 0.0)
             else:
                 means.append(np.nan)
                 errors.append(0.0)
 
         if backend == "estimator-exact":
-            # Dashed, unfilled exact-estimator bars.
             ax.bar(
                 group_centres + offset,
                 means,
@@ -375,8 +451,8 @@ def plot_metric(
                 linewidth=1.8,
                 hatch="///",
             )
+
         else:
-            # Filled bars for shots-based results.
             ax.bar(
                 group_centres + offset,
                 means,
@@ -392,8 +468,13 @@ def plot_metric(
         rotation=35,
         ha="right",
     )
+
     ax.grid(axis="y", alpha=0.3)
     ax.set_axisbelow(True)
+
+    if normalized:
+        ax.set_ylim(0, 1)
+        ax.set_yticks(np.linspace(0, 1, 6))
 
 
 # ================================================================
@@ -406,10 +487,6 @@ def plot_total_capacity(
     output_dir=PLOT_DIR,
     show_std=SHOW_STD,
 ):
-    """
-    Original three-subplot total-capacity figure.
-    """
-
     fig, axes = plt.subplots(
         1,
         3,
@@ -423,18 +500,15 @@ def plot_total_capacity(
             observable,
             "total",
             total_results,
+            normalized=True,
             show_std=show_std,
         )
 
         ax.set_title(f"Observables: {observable}")
 
-    # Shared y-axis label moved to the left.
     fig.supylabel("Normalized total IPC", x=0.005)
-
-    # Shared Hamiltonian label at the bottom.
     fig.supxlabel("Hamiltonian", y=0.25)
 
-    # Shared legend at the bottom.
     handles, labels = axes[0].get_legend_handles_labels()
 
     fig.legend(
@@ -444,12 +518,10 @@ def plot_total_capacity(
         bbox_to_anchor=(0.5, 0.19),
         ncol=4,
         frameon=False,
-        fontsize=11,
+        fontsize=13,
     )
 
     fig.suptitle("", y=0.98)
-
-    # Preserve original spacing.
     fig.tight_layout(rect=[0.02, 0.23, 0.96, 0.92])
 
     output_path = output_dir / FIGURE_NAME
@@ -461,7 +533,7 @@ def plot_total_capacity(
 
 
 # ================================================================
-# Figure 2: Total capacity + individual degrees
+# Generic 3x4 degree-wise figure
 #
 # Rows:
 #     Z
@@ -469,17 +541,18 @@ def plot_total_capacity(
 #     XYZ
 #
 # Columns:
-#     Normalized total capacity
-#     Normalized degree 1
-#     Normalized degree 2
-#     Normalized degree 3
+#     Total capacity
+#     Degree 1
+#     Degree 2
+#     Degree 3
 # ================================================================
 
 
-def plot_degree_capacities(
+def plot_degree_grid(
     total_results,
     degree_results,
-    output_dir=PLOT_DIR,
+    output_path,
+    normalized=True,
     show_std=SHOW_STD,
 ):
     fig, axes = plt.subplots(
@@ -489,12 +562,22 @@ def plot_degree_capacities(
         sharey=False,
     )
 
-    metrics = [
-        ("total", "Normalized total IPC"),
-        ("degree_1", "Normalized degree 1"),
-        ("degree_2", "Normalized degree 2"),
-        ("degree_3", "Normalized degree 3"),
-    ]
+    if normalized:
+        metrics = [
+            ("total", "Normalized total IPC"),
+            ("degree_1", "Normalized degree 1"),
+            ("degree_2", "Normalized degree 2"),
+            ("degree_3", "Normalized degree 3"),
+        ]
+        ylabel_prefix = "Normalized IPC"
+    else:
+        metrics = [
+            ("total", "Total IPC"),
+            ("degree_1", "Degree 1"),
+            ("degree_2", "Degree 2"),
+            ("degree_3", "Degree 3"),
+        ]
+        ylabel_prefix = "IPC"
 
     for row, observable in enumerate(OBSERVABLES):
 
@@ -511,22 +594,22 @@ def plot_degree_capacities(
                 observable,
                 metric,
                 data,
+                normalized=normalized,
                 show_std=show_std,
             )
 
-            ax.set_title(title, fontsize=12, pad=12)
+            ax.set_title(title, fontsize=14, pad=12)
             ax.tick_params(axis="both", labelsize=9)
 
             if col == 0:
                 ax.set_ylabel(
-                    f"{observable}\nNormalized IPC",
+                    f"{observable}\n{ylabel_prefix}",
                     labelpad=10,
                 )
 
             if row == 2:
                 ax.set_xlabel("Hamiltonian", labelpad=10)
 
-    # One shared legend for all 12 subplots.
     handles, labels = axes[0, 0].get_legend_handles_labels()
 
     fig.legend(
@@ -536,12 +619,9 @@ def plot_degree_capacities(
         bbox_to_anchor=(0.5, 0.025),
         ncol=4,
         frameon=False,
-        fontsize=11,
+        fontsize=13,
     )
 
-    # Explicit spacing between subplot rows and columns.
-    # Extra vertical space prevents rotated x-tick labels from
-    # overlapping with the titles of the next row.
     fig.subplots_adjust(
         left=0.075,
         right=0.99,
@@ -551,12 +631,59 @@ def plot_degree_capacities(
         hspace=0.3,
     )
 
-    output_path = output_dir / DEGREE_FIGURE_NAME
-    fig.savefig(output_path, dpi=DPI, bbox_inches="tight")
+    fig.savefig(
+        output_path,
+        dpi=DPI,
+        bbox_inches="tight",
+    )
 
-    print(f"Saved degree plot to: {output_path}")
+    print(f"Saved plot to: {output_path}")
 
     return fig
+
+
+# ================================================================
+# Figure 2: Normalized total capacity + individual degrees
+# ================================================================
+
+
+def plot_normalized_degree_capacities(
+    total_results,
+    degree_results,
+    output_dir=PLOT_DIR,
+    show_std=SHOW_STD,
+):
+    output_path = output_dir / DEGREE_FIGURE_NAME
+
+    return plot_degree_grid(
+        total_results=total_results,
+        degree_results=degree_results,
+        output_path=output_path,
+        normalized=True,
+        show_std=show_std,
+    )
+
+
+# ================================================================
+# Figure 3: Absolute total capacity + individual degrees
+# ================================================================
+
+
+def plot_absolute_degree_capacities(
+    total_results,
+    degree_results,
+    output_dir=PLOT_DIR,
+    show_std=SHOW_STD,
+):
+    output_path = output_dir / ABSOLUTE_FIGURE_NAME
+
+    return plot_degree_grid(
+        total_results=total_results,
+        degree_results=degree_results,
+        output_path=output_path,
+        normalized=False,
+        show_std=show_std,
+    )
 
 
 # ================================================================
@@ -597,36 +724,67 @@ def plot_observables(
     show=SHOW_PLOTS,
     show_std=SHOW_STD,
 ):
-    total_results, degree_results = load_observable_results(root)
+    (
+        normalized_total_results,
+        normalized_degree_results,
+        absolute_total_results,
+        absolute_degree_results,
+    ) = load_observable_results(root)
 
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Generate and save the original total-capacity figure.
+    # Figure 1: Normalized total IPC (1x3).
     fig1 = plot_total_capacity(
-        total_results,
+        normalized_total_results,
         output_dir=output_dir,
         show_std=show_std,
     )
 
-    # Generate and save the additional 3x4 figure.
-    fig2 = plot_degree_capacities(
-        total_results,
-        degree_results,
+    # Figure 2: Normalized total and degree-wise IPC (3x4).
+    fig2 = plot_normalized_degree_capacities(
+        normalized_total_results,
+        normalized_degree_results,
         output_dir=output_dir,
         show_std=show_std,
     )
 
-    print_missing_configurations(total_results)
+    # Figure 3: Absolute total and degree-wise IPC (3x4).
+    fig3 = plot_absolute_degree_capacities(
+        absolute_total_results,
+        absolute_degree_results,
+        output_dir=output_dir,
+        show_std=show_std,
+    )
 
-    # Display both figures after generating and saving them.
+    print_missing_configurations(normalized_total_results)
+
+    print("\nPDF output check:")
+    for filename in [
+        FIGURE_NAME,
+        DEGREE_FIGURE_NAME,
+        ABSOLUTE_FIGURE_NAME,
+    ]:
+        path = output_dir / filename
+
+        if path.exists():
+            print(f"  OK: {path} ({path.stat().st_size:,} bytes)")
+        else:
+            print(f"  ERROR: File was not created: {path}")
+
     if show:
         plt.show()
     else:
         plt.close(fig1)
         plt.close(fig2)
+        plt.close(fig3)
 
-    return total_results, degree_results
+    return (
+        normalized_total_results,
+        normalized_degree_results,
+        absolute_total_results,
+        absolute_degree_results,
+    )
 
 
 if __name__ == "__main__":

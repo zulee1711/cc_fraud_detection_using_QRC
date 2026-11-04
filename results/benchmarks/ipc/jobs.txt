@@ -266,7 +266,7 @@ HAMILTONIANS=(
 )
 
 OBSERVABLES=(
-    Z
+
     Z+ZZ
 
 )
@@ -283,7 +283,7 @@ for hamiltonian in "${HAMILTONIANS[@]}"; do
     for observables in "${OBSERVABLES[@]}"; do
         for seed in $(seq 1 10); do
             safe_obs="${observables//+/_}"
-            logfile="$OUT/$hamiltonian/${BACKEND}__${safe_obs}_seed${seed}.txt"
+            logfile="$OUT/$hamiltonian/${BACKEND}__${safe_obs}_seed${seed}_precision.txt"
 
             echo "Hamiltonian=$hamiltonian observables=$observables seed=$seed"
             echo "Log: $logfile"
@@ -291,6 +291,7 @@ for hamiltonian in "${HAMILTONIANS[@]}"; do
             python -m experiments.run_benchmarks \
                 --tasks ipc \
                 --ipc-reservoir-depth "$depth" \
+                --precision 0.01 \
                 --backend "$BACKEND" \
                 --hardware realistic \
                 --noise pink \

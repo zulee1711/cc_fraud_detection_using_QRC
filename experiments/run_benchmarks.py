@@ -17,11 +17,7 @@ import json
 
 import numpy as np
 
-from experiments.cli import (
-    BACKEND_NAMES,
-    HAMILTONIAN_BUILDERS,
-    make_backend,
-)
+from qrc.pipeline import BACKEND_NAMES, HAMILTONIAN_BUILDERS, make_backend
 from qrc.backends.spinpulse import DD_MODES, NOISE_TYPES, PULSE_SHAPES, SpinPulseConfig
 from qrc.benchmarks import IPCTask, MemoryTask, NARMA10Task, ParityTask
 from qrc.encodings import AngleEncoding

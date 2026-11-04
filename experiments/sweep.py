@@ -23,7 +23,8 @@ import sys
 import traceback
 from pathlib import Path
 
-from experiments.cli import FEATURE_SETS, build_parser, data_source, prepare_data, print_data_summary, run
+from experiments.cli import build_parser, run
+from qrc.pipeline import FEATURE_SETS, data_source, prepare_data, print_data_summary
 
 
 def read_jobs(path):

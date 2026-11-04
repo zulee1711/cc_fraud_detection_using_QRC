@@ -31,8 +31,6 @@ dependencies = [
     "seaborn",
     # hyperparameter search (experiments)
     "optuna",
-    # notebooks under notebook/ and examples/
-    "jupyterlab",
     # tests under tests/
     "pytest",
 ]
