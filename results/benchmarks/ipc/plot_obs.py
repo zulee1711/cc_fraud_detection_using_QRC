@@ -242,7 +242,11 @@ def load_observable_results(root=ROOT):
     absolute_total_results = defaultdict(list)
     absolute_degree_results = defaultdict(list)
 
-    files = sorted(root.rglob("*.txt"))
+    files = sorted(
+        path
+        for hamiltonian in HAMILTONIANS
+        for path in (root / hamiltonian).glob("*.txt")
+    )
 
     loaded_normalized_total = 0
     loaded_normalized_degrees = 0
@@ -264,6 +268,11 @@ def load_observable_results(root=ROOT):
             continue
 
         if config["hamiltonian"] not in HAMILTONIANS:
+            continue
+
+        if config["hamiltonian"] != path.parent.name:
+            print(f"SKIP: Hamiltonian folder does not match filename: {path}")
+            skipped += 1
             continue
 
         # SpinPulse is intentionally excluded.

@@ -202,7 +202,11 @@ def load_results(root=ROOT):
     results = defaultdict(list)
     shots_results = defaultdict(list)
 
-    files = sorted(root.rglob("*.txt"))
+    files = sorted(
+        path
+        for hamiltonian in HAMILTONIANS
+        for path in (root / hamiltonian).glob("*.txt")
+    )
 
     loaded = 0
     skipped = 0
@@ -213,6 +217,11 @@ def load_results(root=ROOT):
         config = parse_filename(path)
 
         if config is None:
+            continue
+
+        if config["hamiltonian"] != path.parent.name:
+            print(f"SKIP: Hamiltonian folder does not match filename: {path}")
+            skipped += 1
             continue
 
         backend = config["backend"]
