@@ -19,6 +19,7 @@ from experiments.run_benchmarks import (
     run_parity_benchmark,
 )
 from qrc.benchmarks import MemoryTask
+from qrc.observables import build_observables
 from qrc.readout import RegressionReadout
 
 SMALL = dict(window_length=4, length=150, n_mem_qubits=2, depth=1)
@@ -58,6 +59,7 @@ def test_narma_benchmark_runs():
 
 
 def test_ipc_benchmark_runs_with_multi_output_readout():
+    n_input_qubits = 1
     metrics = run_ipc_benchmark(
         length=120,
         window_length=4,
@@ -65,14 +67,32 @@ def test_ipc_benchmark_runs_with_multi_output_readout():
         max_delay=3,
         washout=10,
         seed=42,
+        n_input_qubits=n_input_qubits,
         n_mem_qubits=2,
         depth=1,
+        observables_spec="Z+ZZ",
     )
-    assert set(metrics) == {"degree_1", "degree_2", "total_capacity"}
+    expected_keys = {
+        "degree_1",
+        "degree_2",
+        "total_capacity",
+        "normalized_degree_1",
+        "normalized_degree_2",
+        "normalized_total_capacity",
+    }
+    assert set(metrics) == expected_keys
     assert all(np.isfinite(capacity) and capacity >= 0 for capacity in metrics.values())
     assert metrics["total_capacity"] == pytest.approx(
         metrics["degree_1"] + metrics["degree_2"]
     )
+    n_observables = len(build_observables("Z+ZZ", n_input_qubits + 2))
+    assert metrics["normalized_total_capacity"] == pytest.approx(
+        metrics["total_capacity"] / n_observables
+    )
+    for degree in (1, 2):
+        assert metrics[f"normalized_degree_{degree}"] == pytest.approx(
+            metrics[f"degree_{degree}"] / n_observables
+        )
 
 
 @pytest.mark.parametrize(
@@ -101,6 +121,8 @@ def test_ipc_cli_maps_reservoir_depth_to_setup(
             hamiltonian,
             "--ipc-reservoir-depth",
             "4",
+            "--observables",
+            "XYZ+XYZ-2body",
         ],
     )
     monkeypatch.setattr(
@@ -110,6 +132,7 @@ def test_ipc_cli_maps_reservoir_depth_to_setup(
     main()
 
     assert calls[0][protocol_argument] == 4
+    assert calls[0]["observables_spec"] == "XYZ+XYZ-2body"
 
 
 def test_build_hamiltonian_protocol_uses_requested_trotter_steps():
